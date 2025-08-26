@@ -1,6 +1,6 @@
 const verticalMenuData = dictionary => [
   {
-    label: "Users",
+    label: "Customers",
     href: '/users',
     icon: 'tabler-user'
   },
@@ -8,7 +8,17 @@ const verticalMenuData = dictionary => [
     label: "Brands",
     href: '/brands',
     icon: 'tabler-building-store'
-  }
+  },
+  {
+    label: "Employees",
+    href: '/employees',
+    icon: 'tabler-users'
+  },
+  // {
+  //   label: "Products",
+  //   href: '/products',
+  //   icon: 'tabler-box'
+  // }
 ]
 
 export default verticalMenuData

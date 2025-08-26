@@ -264,7 +264,7 @@ const UsersPage = () => {
       <Card className='mb-6'>
         <div className='flex justify-between items-center p-6'>
           <Typography variant='h4' component='h1'>
-            Users
+            Customers
           </Typography>
           <Button
             variant='contained'
@@ -275,7 +275,7 @@ const UsersPage = () => {
             }}
             className='max-sm:is-full'
           >
-            Add New User
+            Add New Customer
           </Button>
         </div>
       </Card>
