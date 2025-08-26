@@ -12,16 +12,23 @@ import Divider from '@mui/material/Divider'
 import { useForm, Controller } from 'react-hook-form'
 
 // Component Imports
-import CustomTextField from '@core/components/mui/TextField'
 import * as Yup from 'yup'
+
 import { useFormik } from 'formik'
+
+import { toast } from 'react-toastify'
+
+import { useQueryClient } from '@tanstack/react-query'
+
+import CustomTextField from '@core/components/mui/TextField'
+
 import FormikProvider from '@/contexts/formikContext'
 import CustomInput from '@/components/custom-components/CustomInput'
 import { lookupService } from '@/services/lookupService'
 import { customerService } from '@/services/customerService'
 import CustomSelect from '@/components/custom-components/CustomSelect'
-import { toast } from 'react-toastify'
-import { useQueryClient } from '@tanstack/react-query'
+
+
 import CustomButton from '@/components/custom-components/CustomButton'
 
 const AddUserDrawer = props => {
@@ -48,6 +55,7 @@ const AddUserDrawer = props => {
     if (oneUserData) {
       formik.setValues({
         customerName: oneUserData.customerName || '',
+        customerSeq: oneUserData.customerSeq || oneUserData.customerCode || '',
         customerProvince: oneUserData.customerProvince || '',
         customerCity: oneUserData.customerCity || '',
         customerAddress: oneUserData.customerAddress || '',
@@ -97,6 +105,10 @@ const AddUserDrawer = props => {
       .trim()
       .max(200, 'Customer name cannot exceed 200 characters'),
 
+    customerSeq: Yup.string()
+      .trim()
+      .max(50, 'Customer sequence cannot exceed 50 characters'),
+
     // Location information
     customerProvince: Yup.string().required('Customer province is required'),
 
@@ -137,9 +149,18 @@ const AddUserDrawer = props => {
       .transform((curr, orig) => (orig === '' ? null : curr))
   })
 
+  // Function to generate customer sequence if not provided
+  const generateCustomerSeq = () => {
+    const timestamp = Date.now().toString().slice(-6)
+
+    
+return `CUST-${timestamp}`
+  }
+
   const formik = useFormik({
     initialValues: {
       customerName: '',
+      customerSeq: '',
       customerProvince: '',
       customerCity: '',
       customerAddress: '',
@@ -154,6 +175,11 @@ const AddUserDrawer = props => {
     },
     validationSchema: schema,
     onSubmit: values => {
+      // Auto-generate customerSeq if not provided and it's a new customer
+      if (!oneUser && !values.customerSeq) {
+        values.customerSeq = generateCustomerSeq()
+      }
+      
       if (oneUser) {
         updateCustomer({ id: oneUser, customerData: values }, {
           onSuccess: (response) => {
@@ -231,6 +257,8 @@ const AddUserDrawer = props => {
         <form className='flex flex-col gap-6 p-6'>
           <FormikProvider formik={{ ...formik, isLoading: isCreatingCustomer }}>
             <CustomInput name='customerName' label='Full Name' placeholder='John Doe' requiredField />
+
+            <CustomInput name='customerSeq' label='Customer Sequence' placeholder='SEQ001' />
 
             <CustomSelect
               name='customerProvince'
