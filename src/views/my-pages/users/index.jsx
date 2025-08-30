@@ -2,11 +2,13 @@
 
 // React Imports
 import { useEffect, useState } from 'react'
-import { toast } from 'react-toastify'
+
 
 // Next Imports
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
+
+import { toast } from 'react-toastify'
 
 // MUI Imports
 import Card from '@mui/material/Card'
@@ -68,7 +70,7 @@ const UsersPage = () => {
             <Typography color='text.primary' className='font-medium'>
               {row.original.customerName || 'N/A'}
             </Typography>
-            {/* <Typography variant='body2'>{row.original.customerCode || 'N/A'}</Typography> */}
+            <Typography variant='body2'>{row.original.customerSeq || row.original.customerCode || 'N/A'}</Typography>
           </div>
         </div>
       )
@@ -135,6 +137,7 @@ const UsersPage = () => {
             {
               onSuccess: (response) => {
                 const statusText = response.data.result.isActive ? 'activated' : 'deactivated'
+
                 toast.success(`Customer ${statusText} successfully`)
                 queryClient.invalidateQueries(['get-all-customers'])
               },
