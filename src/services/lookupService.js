@@ -34,5 +34,48 @@ export const lookupService = {
       retry: false,
       refetchOnWindowFocus: false
     })
+  },
+  getAllDesignations: queryKey => {
+    return useQuery({
+      queryKey: [queryKey],
+      queryFn: () => {
+        return axios.get(`${API_BASE_URL}${API_URLS.getAllDesignations}`)
+      },
+      retry: false,
+      refetchOnWindowFocus: false
+    })
+  },
+  getAllCities: queryKey => {
+    return useQuery({
+      queryKey: [queryKey],
+      queryFn: () => {
+        return axios.get(`${API_BASE_URL}${API_URLS.getAllCities}`)
+      },
+      retry: false,
+      refetchOnWindowFocus: false
+    })
+  },
+  getAreasLookup: queryKey => {
+    return useQuery({
+      queryKey: [queryKey],
+      queryFn: () => {
+        return axios.get(`${API_BASE_URL}${API_URLS.getAreasLookup}`)
+      },
+      retry: false,
+      refetchOnWindowFocus: false
+    })
+  },
+  getSubAreasLookup: (queryKey, area) => {
+    return useQuery({
+      queryKey: [queryKey, area],
+      queryFn: () => {
+        const url = area
+          ? `${API_BASE_URL}${API_URLS.getSubAreasLookup}?area=${area}`
+          : `${API_BASE_URL}${API_URLS.getSubAreasLookup}`
+        return axios.get(url)
+      },
+      retry: false,
+      refetchOnWindowFocus: false
+    })
   }
 }

@@ -27,8 +27,10 @@ import CustomAvatar from '@core/components/mui/Avatar'
 // Util Imports
 import { getInitials } from '@/utils/getInitials'
 import { getLocalizedUrl } from '@/utils/i18n'
+import { productService } from '@/services/productService'
 import { brandService } from '@/services/brandService'
-import AddBrandDrawer from './AddBrandDrawer'
+import { groupService } from '@/services/groupService'
+import AddProductDrawer from './AddProductDrawer'
 
 // Styled Components
 const Icon = styled('i')({})
@@ -36,53 +38,95 @@ const Icon = styled('i')({})
 // Column Definitions
 const columnHelper = createColumnHelper()
 
-const BrandsPage = () => {
+const ProductsPage = () => {
   // States
-  const [oneBrand, setOneBrand] = useState(null)
-  const [addBrandOpen, setAddBrandOpen] = useState(false)
+  const [oneProduct, setOneProduct] = useState(null)
+  const [addProductOpen, setAddProductOpen] = useState(false)
   const [toggledId, setToggledId] = useState(null)
+  const [brands, setBrands] = useState([])
+  const [groups, setGroups] = useState([])
 
   // Hooks
   const { lang: locale } = useParams()
   const queryClient = useQueryClient()
 
-  // Using `useMutation` to toggle brand status
-  const { mutate: toggleStatus, isPending: isTogglingStatus } = brandService.toggleBrandStatus()
+  // Using `useMutation` to toggle product status
+  const { mutate: toggleStatus, isPending: isTogglingStatus } = productService.toggleProductStatus()
 
-  // Define columns for the brands table
+  // API calls for filter data
+  const { data: brandsData } = brandService.getAllBrands('get-all-brands')
+  const { data: groupsData } = groupService.getAllGroups('get-all-groups')
+
+  useEffect(() => {
+    if (brandsData?.data?.success) {
+      setBrands(brandsData.data.result?.docs || brandsData.data.result || [])
+    } else {
+      setBrands([])
+    }
+  }, [brandsData])
+
+  useEffect(() => {
+    if (groupsData?.data?.success) {
+      setGroups(groupsData.data.result?.docs || groupsData.data.result || [])
+    } else {
+      setGroups([])
+    }
+  }, [groupsData])
+
+  // Define columns for the products table
   const columns = [
-    columnHelper.accessor('brandName', {
-      header: 'Brand',
+    columnHelper.accessor('productName', {
+      header: 'Product',
       cell: ({ row }) => (
         <div className='flex items-center gap-4'>
-          {getAvatar({ avatar: null, fullName: row.original.brandName })}
+          {getAvatar({ avatar: null, fullName: row.original.productName })}
           <div className='flex flex-col'>
             <Typography color='text.primary' className='font-medium'>
-              {row.original.brandName || 'N/A'}
+              {row.original.productName || 'N/A'}
             </Typography>
-            {/* <Typography variant='body2'>{row.original.brandCode || 'N/A'}</Typography> */}
+            <Typography variant='body2' color='text.secondary'>
+              {row.original.packingSize || 'N/A'}
+            </Typography>
           </div>
         </div>
       )
     }),
-    columnHelper.accessor('address', {
-      header: 'Address',
+    columnHelper.accessor('brandId.brandName', {
+      header: 'Brand',
       cell: ({ row }) => (
-        <Typography color='text.primary'>
-          {row.original.address || 'N/A'}
-        </Typography>
+        <div className='flex items-center gap-2'>
+          <Icon className='tabler-brand-tabler' sx={{ color: 'var(--mui-palette-primary-main)' }} />
+          <Typography color='text.primary'>
+            {row.original.brandId?.brandName || 'N/A'}
+          </Typography>
+        </div>
       )
     }),
-    columnHelper.accessor('primaryContact', {
-      header: 'Contact',
+    columnHelper.accessor('groupId', {
+      header: 'Group/Category',
       cell: ({ row }) => (
         <div className='flex flex-col'>
-          <Typography color='text.primary'>{row.original.primaryContact || 'N/A'}</Typography>
-          {row.original.secondaryContact && (
+          <Typography color='text.primary' className='font-medium'>
+            {row.original.groupId?.group || 'N/A'}
+          </Typography>
+          {row.original.groupId?.subGroup && (
             <Typography variant='body2' color='text.secondary'>
-              {row.original.secondaryContact}
+              {row.original.groupId.subGroup}
             </Typography>
           )}
+        </div>
+      )
+    }),
+    columnHelper.accessor('packingSize', {
+      header: 'Packaging',
+      cell: ({ row }) => (
+        <div className='flex flex-col'>
+          <Typography color='text.primary'>
+            <strong>Pack:</strong> {row.original.packingSize || 'N/A'}
+          </Typography>
+          <Typography variant='body2' color='text.secondary'>
+            <strong>Carton:</strong> {row.original.cartonSize || 'N/A'}
+          </Typography>
         </div>
       )
     }),
@@ -124,10 +168,28 @@ const BrandsPage = () => {
     })
   ]
 
-  // Define filters for the brands table
+  // Define filters for the products table
   const filters = {
     heading: 'Filters',
     filterArray: [
+      {
+        label: 'Brand',
+        dbColumn: 'brandId',
+        placeholder: 'Select Brand',
+        options: brands.map(brand => ({
+          value: brand._id,
+          label: brand.brandName
+        }))
+      },
+      {
+        label: 'Group',
+        dbColumn: 'groupId',
+        placeholder: 'Select Group',
+        options: groups.map(group => ({
+          value: group._id,
+          label: `${group.group}${group.subGroup ? ` - ${group.subGroup}` : ''}`
+        }))
+      },
       {
         label: 'Status',
         dbColumn: 'status',
@@ -148,7 +210,13 @@ const BrandsPage = () => {
     // Transform the data to flatten nested fields for better filtering
     return data.map(item => ({
       ...item,
-      id: item.id
+      id: item._id,
+      // Add status for filtering
+      status: item.isActive ? 'Active' : 'Inactive',
+      // Flatten brand and group for filtering
+      brandName: item.brandId?.brandName || '',
+      groupName: item.groupId?.group || '',
+      subGroupName: item.groupId?.subGroup || ''
     }))
   }
 
@@ -157,11 +225,11 @@ const BrandsPage = () => {
     setToggledId(id)
     toggleStatus(id, {
       onSuccess: () => {
-        queryClient.invalidateQueries(['get-all-brands'])
-        toast.success('Brand status updated successfully')
+        queryClient.invalidateQueries(['get-all-products'])
+        toast.success('Product status updated successfully')
       },
       onError: error => {
-        toast.error(error.message || 'Error updating brand status')
+        toast.error(error.message || 'Error updating product status')
       },
       onSettled: () => {
         setToggledId(null)
@@ -170,11 +238,10 @@ const BrandsPage = () => {
   }
 
   // Handle edit
-  const handleEdit = brand => {
-    setOneBrand(brand)
-    setAddBrandOpen(true)
+  const handleEdit = product => {
+    setOneProduct(product)
+    setAddProductOpen(true)
   }
-
 
   const getAvatar = params => {
     const { avatar, fullName } = params
@@ -188,30 +255,30 @@ const BrandsPage = () => {
 
   return (
     <>
-      {/* Top Section with Brands heading and Add New Brand button */}
+      {/* Top Section with Products heading and Add New Product button */}
       <Card className='mb-6'>
         <div className='flex justify-between items-center p-6'>
           <Typography variant='h4' component='h1'>
-            Brands
+            Products
           </Typography>
           <Button
             variant='contained'
             startIcon={<i className='tabler-plus' />}
             onClick={() => {
-              setOneBrand(null)
-              setAddBrandOpen(!addBrandOpen)
+              setOneProduct(null)
+              setAddProductOpen(!addProductOpen)
             }}
             className='max-sm:is-full'
           >
-            Add New Brand
+            Add New Product
           </Button>
         </div>
       </Card>
 
       {/* Custom Data Table */}
       <CustomDataTable
-        apiURL='/brands'
-        queryKey='get-all-brands'
+        apiURL='/products'
+        queryKey='get-all-products'
         columns={columns}
         filters={filters}
         enableSelection={true}
@@ -225,17 +292,17 @@ const BrandsPage = () => {
         }}
       />
 
-      {/* Add Brand Drawer */}
-      {addBrandOpen && (
-        <AddBrandDrawer
-          open={addBrandOpen}
-          stateChanger={() => setAddBrandOpen(!addBrandOpen)}
-          oneBrand={oneBrand}
-          setOneBrand={setOneBrand}
+      {/* Add Product Drawer */}
+      {addProductOpen && (
+        <AddProductDrawer
+          open={addProductOpen}
+          stateChanger={() => setAddProductOpen(!addProductOpen)}
+          oneProduct={oneProduct}
+          setOneProduct={setOneProduct}
         />
       )}
     </>
   )
 }
 
-export default BrandsPage
+export default ProductsPage

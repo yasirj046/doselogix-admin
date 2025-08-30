@@ -32,6 +32,9 @@ const AddUserDrawer = props => {
   const [provinces, setProvinces] = useState([])
   const [cities, setCities] = useState([])
   const [categories, setCategories] = useState([])
+  const [areas, setAreas] = useState([])
+  const [subAreas, setSubAreas] = useState([])
+  const [selectedArea, setSelectedArea] = useState('')
   const [oneUserData, setOneUserData] = useState(null)
   const queryClient = useQueryClient()
 
@@ -87,6 +90,38 @@ const AddUserDrawer = props => {
       setProvinces([])
     }
   }, [provincesData])
+
+  //Api call to get all areas
+  const { data: areasData, isFetching: areasLoading } = lookupService.getAreasLookup('get-all-areas')
+
+  useEffect(() => {
+    if (areasData?.data?.success) {
+      setAreas(areasData.data.result)
+    } else {
+      setAreas([])
+    }
+  }, [areasData])
+
+  //Api call to get sub areas by area
+  const { data: subAreasData, isFetching: subAreasLoading } = lookupService.getSubAreasLookup(
+    'get-sub-areas-by-area',
+    selectedArea
+  )
+
+  useEffect(() => {
+    if (subAreasData?.data?.success) {
+      setSubAreas(subAreasData.data.result)
+    } else {
+      setSubAreas([])
+    }
+  }, [subAreasData])
+
+  // Update selectedArea when oneUserData changes (for edit mode)
+  useEffect(() => {
+    if (oneUserData?.customerArea) {
+      setSelectedArea(oneUserData.customerArea)
+    }
+  }, [oneUserData])
 
 
   // Validation Schema
@@ -191,7 +226,19 @@ const AddUserDrawer = props => {
     formik.handleReset()
     setOneUser(null)
     setOneUserData(null)
+    setSelectedArea('')
   }
+
+  // Handle area selection changes
+  useEffect(() => {
+    if (formik.values.customerArea !== selectedArea) {
+      setSelectedArea(formik.values.customerArea)
+      // Clear sub area when area changes
+      if (formik.values.customerSubArea) {
+        formik.setFieldValue('customerSubArea', '')
+      }
+    }
+  }, [formik.values.customerArea, selectedArea])
 
   //Api call to get all cities by province
   const { data: citiesData, isFetching: isCitiesLoading } = lookupService.getCitiesByProvince(
@@ -262,9 +309,23 @@ const AddUserDrawer = props => {
               loading={categoriesLoading}
             />
 
-            <CustomInput name='customerArea' label='Area' placeholder='Select Area' requiredField />
+            <CustomSelect
+              name='customerArea'
+              label='Area'
+              placeholder='Select Area'
+              options={areas}
+              requiredField
+              loading={areasLoading}
+            />
 
-            <CustomInput name='customerSubArea' label='Sub Area' placeholder='Select Sub Area' requiredField />
+            <CustomSelect
+              name='customerSubArea'
+              label='Sub Area'
+              placeholder='Select Sub Area'
+              options={subAreas}
+              disabled={!formik.values.customerArea}
+              loading={subAreasLoading}
+            />
 
             <CustomInput
               name='customerPrimaryContact'

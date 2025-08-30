@@ -161,4 +161,4 @@ const AddBrandDrawer = ({ open, stateChanger, oneBrand, setOneBrand }) => {
   )
 }
 
-export default AddBrandDrawer 
+export default AddBrandDrawer

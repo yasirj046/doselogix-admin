@@ -32,8 +32,8 @@ import CustomAvatar from '@core/components/mui/Avatar'
 import { getInitials } from '@/utils/getInitials'
 import { getLocalizedUrl } from '@/utils/i18n'
 import { lookupService } from '@/services/lookupService'
-import AddUserDrawer from './AddUserDrawer'
-import { customerService } from '@/services/customerService'
+import AddEmployeeDrawer from './AddEmployeeDrawer'
+import { employeeService } from '@/services/EmployeeService'
 
 // Styled Components
 const Icon = styled('i')({})
@@ -41,106 +41,85 @@ const Icon = styled('i')({})
 // Column Definitions
 const columnHelper = createColumnHelper()
 
-const UsersPage = () => {
+const EmployeesPage = () => {
   // States
-  const [oneUser, setOneUser] = useState(null)
-  const [addUserOpen, setAddUserOpen] = useState(false)
-  const [provinces, setProvinces] = useState([])
-  const [selectedProvince, setSelectedProvince] = useState('')
-  const [cities, setCities] = useState([])
+  const [oneEmployee, setOneEmployee] = useState(null)
+  const [addEmployeeOpen, setAddEmployeeOpen] = useState(false)
+  const [designations, setDesignations] = useState([])
   const [toggledId, setToggledId] = useState(null)
 
   // Hooks
   const { lang: locale } = useParams()
   const queryClient = useQueryClient()
 
-  // Using `useMutation` to toggle customer status
-  const { mutate: toggleStatus, isPending: isTogglingStatus } = customerService.toggleCustomerStatus()
+  // Using `useMutation` to toggle employee status
+  const { mutate: toggleStatus, isPending: isTogglingStatus } = employeeService.toggleEmployeeStatus()
 
-  // Define columns for the customers table
+  // Define columns for the employees table
   const columns = [
-    columnHelper.accessor('customerName', {
-      header: 'Customer',
+    columnHelper.accessor('employeeName', {
+      header: 'Employee',
       cell: ({ row }) => (
         <div className='flex items-center gap-4'>
-          {getAvatar({ avatar: null, fullName: row.original.customerName })}
+          {getAvatar({ avatar: null, fullName: row.original.employeeName })}
           <div className='flex flex-col'>
             <Typography color='text.primary' className='font-medium'>
-              {row.original.customerName || 'N/A'}
+              {row.original.employeeName || 'N/A'}
             </Typography>
-            {/* <Typography variant='body2'>{row.original.customerCode || 'N/A'}</Typography> */}
           </div>
         </div>
       )
     }),
-    columnHelper.accessor('customerCategory', {
-      header: 'Category',
+    columnHelper.accessor('designation', {
+      header: 'Designation',
       cell: ({ row }) => (
         <div className='flex items-center gap-2'>
-          <Icon className='tabler-building-store' sx={{ color: 'var(--mui-palette-primary-main)' }} />
+          <Icon className='tabler-user-check' sx={{ color: 'var(--mui-palette-primary-main)' }} />
           <Typography className='capitalize' color='text.primary'>
-            {row.original.customerCategory || 'N/A'}
+            {row.original.designation || 'N/A'}
           </Typography>
         </div>
       )
     }),
-    columnHelper.accessor('customerProvince', {
+    columnHelper.accessor('city', {
       header: 'Location',
       cell: ({ row }) => (
         <Typography className='capitalize' color='text.primary'>
-          {row.original.customerCity}, {row.original.customerProvince}
+          {row.original.city || 'N/A'}
         </Typography>
       )
     }),
-    columnHelper.accessor('customerPrimaryContact', {
+    columnHelper.accessor('primaryContact', {
       header: 'Contact',
-      cell: ({ row }) => <Typography>{row.original.customerPrimaryContact || 'N/A'}</Typography>
+      cell: ({ row }) => <Typography>{row.original.primaryContact || 'N/A'}</Typography>
     }),
-    columnHelper.accessor('customerLicenseStatus', {
-      header: 'License Status',
-      cell: ({ row }) => {
-        const status = row.original.customerLicenseStatus?.status || 'N/A'
-        const daysRemaining = row.original.customerLicenseStatus?.daysRemaining
-
-        let color = 'default'
-
-        if (status === 'VALID') color = 'success'
-        else if (status === 'URGENT') color = 'warning'
-        else if (status === 'EXPIRED') color = 'error'
-        else if (status === 'NOT_SET') color = 'secondary'
-
-        return (
-          <div className='flex items-center gap-3'>
-            <Chip
-              variant='tonal'
-              label={`${status} ${daysRemaining ? `(${daysRemaining} days)` : ''}`}
-              size='small'
-              color={color}
-              className='capitalize'
-            />
-          </div>
-        )
-      }
+    columnHelper.accessor('salary', {
+      header: 'Salary',
+      cell: ({ row }) => (
+        <Typography color='text.primary'>
+          {row.original.salary ? `Rs. ${row.original.salary.toLocaleString()}` : 'N/A'}
+        </Typography>
+      )
     }),
-    columnHelper.accessor('customerStatus', {
+    columnHelper.accessor('employeeStatus', {
       header: 'Status',
       cell: ({ row }) => {
-        const customerId = row.original.id
-        const isCurrentToggling = isTogglingStatus && toggledId === customerId
+        const employeeId = row.original.id
+        const isCurrentToggling = isTogglingStatus && toggledId === employeeId
 
         const handleToggle = () => {
-          setToggledId(customerId)
+          setToggledId(employeeId)
           toggleStatus(
-            { id: customerId },
+            { id: employeeId },
             {
               onSuccess: (response) => {
                 const statusText = response.data.result.isActive ? 'activated' : 'deactivated'
-                toast.success(`Customer ${statusText} successfully`)
-                queryClient.invalidateQueries(['get-all-customers'])
+                toast.success(`Employee ${statusText} successfully`)
+                queryClient.invalidateQueries(['get-all-employees'])
               },
               onError: (error) => {
-                console.error('Failed to toggle customer status', error)
-                toast.error('Failed to update customer status')
+                console.error('Failed to toggle employee status', error)
+                toast.error('Failed to update employee status')
               },
               onSettled: () => {
                 setToggledId(null)
@@ -158,7 +137,7 @@ const UsersPage = () => {
                 checked={row.original.isActive}
                 onChange={handleToggle}
                 disabled={isTogglingStatus}
-                inputProps={{ 'aria-label': 'toggle customer status' }}
+                inputProps={{ 'aria-label': 'toggle employee status' }}
               />
             )}
           </div>
@@ -171,8 +150,8 @@ const UsersPage = () => {
         return (
           <div className='flex items-center'>
             <IconButton onClick={() => {
-              setOneUser(row.original.id)
-              setAddUserOpen(true)
+              setOneEmployee(row.original.id)
+              setAddEmployeeOpen(true)
             }}>
               <div className='flex'>
                 <i className='tabler-edit text-textSecondary' />
@@ -185,58 +164,34 @@ const UsersPage = () => {
     })
   ]
 
-  //Api call to get all provinces
-  const { data: provincesData } = lookupService.getAllProvinces('get-all-provinces')
+  //Api call to get all designations
+  const { data: designationsData } = lookupService.getAllDesignations('get-all-designations')
 
   useEffect(() => {
-    if (provincesData?.data?.success) {
-      setProvinces(provincesData.data.result)
+    if (designationsData?.data?.success) {
+      setDesignations(designationsData.data.result)
     } else {
-      setProvinces([])
+      setDesignations([])
     }
-  }, [provincesData])
+  }, [designationsData])
 
-  //Api call to get all cities by province
-  const { data: citiesData } = lookupService.getCitiesByProvince('get-cities-by-province', selectedProvince)
-
-  useEffect(() => {
-    if (citiesData?.data?.success) {
-      setCities(citiesData.data.result)
-    } else {
-      setCities([])
-    }
-  }, [citiesData])
-
-  // Define filters for the customers table
+  // Define filters for the employees table
   const filters = {
     heading: 'Filters',
     filterArray: [
       {
-        label: 'Province',
-        dbColumn: 'customerProvince',
-        placeholder: 'Select Province',
-        options: provinces,
-        onChange: value => {
-          if (value == '') {
-            setCities([])
-          } else {
-            setSelectedProvince(value)
-          }
-        }
-      },
-      {
-        label: 'Cities',
-        dbColumn: 'customerCity',
-        placeholder: 'Select City',
-        options: cities
+        label: 'Designation',
+        dbColumn: 'designation',
+        placeholder: 'Select Designation',
+        options: designations
       },
       {
         label: 'Status',
         dbColumn: 'status',
         placeholder: 'Select Status',
         options: [
-          { value: 'active', label: 'Active' },
-          { value: 'inactive', label: 'Inactive' }
+          { value: 'Active', label: 'Active' },
+          { value: 'Inactive', label: 'Inactive' }
         ]
       }
     ]
@@ -250,13 +205,7 @@ const UsersPage = () => {
     // Transform the data to flatten nested fields for better filtering
     return data.map(item => ({
       ...item,
-      id: item.id,
-
-      // Flatten license status for filtering
-      licenseStatus: item.customerLicenseStatus?.status || 'N/A',
-
-      // Add status for filtering
-      status: item.isActive ? 'active' : 'inactive'
+      id: item._id || item.id
     }))
   }
 
@@ -272,30 +221,30 @@ const UsersPage = () => {
 
   return (
     <>
-      {/* Top Section with Users heading and Add New User button */}
+      {/* Top Section with Employees heading and Add New Employee button */}
       <Card className='mb-6'>
         <div className='flex justify-between items-center p-6'>
           <Typography variant='h4' component='h1'>
-            Customers
+            Employees
           </Typography>
           <Button
             variant='contained'
             startIcon={<i className='tabler-plus' />}
             onClick={() => {
-              setOneUser(null)
-              setAddUserOpen(!addUserOpen)
+              setOneEmployee(null)
+              setAddEmployeeOpen(!addEmployeeOpen)
             }}
             className='max-sm:is-full'
           >
-            Add New Customer
+            Add New Employee
           </Button>
         </div>
       </Card>
 
       {/* Custom Data Table */}
       <CustomDataTable
-        apiURL='/customers'
-        queryKey='get-all-customers'
+        apiURL='/employees'
+        queryKey='get-all-employees'
         columns={columns}
         filters={filters}
         enableSelection={true}
@@ -309,17 +258,17 @@ const UsersPage = () => {
         }}
       />
 
-      {/* Add User Drawer - Keep this if you have the component */}
-      {addUserOpen && (
-        <AddUserDrawer
-          open={addUserOpen}
-          stateChanger={() => setAddUserOpen(!addUserOpen)}
-          oneUser={oneUser}
-          setOneUser={setOneUser}
+      {/* Add Employee Drawer */}
+      {addEmployeeOpen && (
+        <AddEmployeeDrawer
+          open={addEmployeeOpen}
+          stateChanger={() => setAddEmployeeOpen(!addEmployeeOpen)}
+          oneEmployee={oneEmployee}
+          setOneEmployee={setOneEmployee}
         />
       )}
     </>
   )
 }
 
-export default UsersPage
+export default EmployeesPage

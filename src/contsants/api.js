@@ -25,8 +25,56 @@ export const API_URLS = {
   DELETE_BRAND: '/brands/', // + id
   TOGGLE_BRAND_STATUS: '/brands/', // + id + '/toggle-status'
 
+
+  //Employees
+  GET_EMPLOYEES: '/employees',
+  CREATE_EMPLOYEE: '/employees',
+  GET_EMPLOYEE_BY_ID: '/employees/', // + id
+  UPDATE_EMPLOYEE: '/employees/', // + id
+  DELETE_EMPLOYEE: '/employees/', // + id
+  TOGGLE_EMPLOYEE_STATUS: '/employees/', // + id + '/toggle-status'
+
+  //Areas
+  GET_AREAS: '/areas',
+  CREATE_AREA: '/areas',
+  GET_AREA_BY_ID: '/areas/', // + id
+  UPDATE_AREA: '/areas/', // + id
+  DELETE_AREA: '/areas/', // + id
+  TOGGLE_AREA_STATUS: '/areas/', // + id + '/toggle-status'
+
+  //Groups
+  GET_GROUPS: '/groups',
+  CREATE_GROUP: '/groups',
+  GET_GROUP_BY_ID: '/groups/', // + id
+  UPDATE_GROUP: '/groups/', // + id
+  DELETE_GROUP: '/groups/', // + id
+  TOGGLE_GROUP_STATUS: '/groups/', // + id + '/toggle-status'
+  GET_MY_GROUPS: '/groups/my/groups',
+  GET_GROUPS_BY_VENDOR: '/groups/vendor/groups',
+  GET_GROUPS_BY_BRAND: '/groups/brand/', // + brandId
+  GET_UNIQUE_GROUPS_BY_BRAND: '/groups/unique/brand/', // + brandId
+  GET_ALL_UNIQUE_GROUPS: '/groups/unique/all',
+  GET_SUB_GROUPS: '/groups/subgroups',
+  GET_GROUPS_BY_NAME: '/groups/search/', // + group
+
+  //Products
+  GET_PRODUCTS: '/products',
+  CREATE_PRODUCT: '/products',
+  GET_PRODUCT_BY_ID: '/products/', // + id
+  UPDATE_PRODUCT: '/products/', // + id
+  DELETE_PRODUCT: '/products/', // + id
+  TOGGLE_PRODUCT_STATUS: '/products/', // + id + '/toggle-status'
+  GET_MY_PRODUCTS: '/products/my/products',
+  GET_PRODUCT_STATS: '/products/stats',
+  GET_PRODUCTS_BY_BRAND: '/products/brand/', // + brandId
+  GET_PRODUCTS_BY_GROUP: '/products/group/', // + groupId
+
   //Lookup
   getAllProvinces: '/lookup/provinces',
   getCitiesByProvince: '/lookup/cities',
-  getAllCategories: '/lookup/categories'
+  getAllCategories: '/lookup/categories',
+  getAllDesignations: '/lookup/designations',
+  getAllCities: '/lookup/all-cities',
+  getAreasLookup: '/lookup/areas',
+  getSubAreasLookup: '/lookup/subareas',
 }
