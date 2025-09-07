@@ -21,4 +21,28 @@ axiosInstance.interceptors.request.use(
   }
 )
 
+// Add response interceptor for consistent error handling
+axiosInstance.interceptors.response.use(
+  response => response,
+  error => {
+    let errorMessage = 'An unexpected error occurred'
+    
+    if (error.response) {
+      // Server responded with error
+      errorMessage = error.response.data?.message || error.response.data?.error || 'Server error'
+    } else if (error.request) {
+      // Request made but no response
+      errorMessage = 'No response from server. Please check your connection.'
+    } else {
+      // Request setup error
+      errorMessage = error.message || 'Error preparing request'
+    }
+
+    return Promise.reject({
+      ...error,
+      message: errorMessage
+    })
+  }
+)
+
 export default axiosInstance 

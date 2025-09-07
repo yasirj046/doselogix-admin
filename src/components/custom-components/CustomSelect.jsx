@@ -197,26 +197,36 @@ const CustomSelect = forwardRef((props, ref) => {
   // Get formik field props
   const fieldProps = formik.getFieldProps(name)
 
+  // Helper function to get nested value from object
+  const getNestedValue = (obj, path) => {
+    return path.split('.').reduce((o, p) => o && o[p], obj)
+  }
+
   // Determine error state
-  const hasError = formik.errors[name] && formik.touched[name]
-  const errorMessage = formik.errors[name]
+  const nestedError = getNestedValue(formik.errors, name)
+  const nestedTouched = getNestedValue(formik.touched, name)
+  const hasError = nestedError && nestedTouched
+  const errorMessage = nestedError
+
+  // Get current field value
+  const currentValue = getNestedValue(formik.values, name)
 
   // Update selected option when formik value or options change
   useEffect(() => {
-    const selected = options.find(option => option.value == formik.values[name])
+    const selected = options.find(option => option.value == currentValue)
     setSelectedOption(selected || null)
 
     // Set input value for autocomplete
     if (autoComplete || freeSolo) {
       if (selected) {
         setInputValue(selected.label)
-      } else if (freeSolo && formik.values[name]) {
-        setInputValue(formik.values[name])
+      } else if (freeSolo && currentValue) {
+        setInputValue(currentValue)
       } else {
         setInputValue('')
       }
     }
-  }, [formik.values[name], options, autoComplete, freeSolo])
+  }, [currentValue, options, autoComplete, freeSolo])
 
   // Filter options based on input value
   useEffect(() => {
@@ -408,7 +418,7 @@ const CustomSelect = forwardRef((props, ref) => {
           size={size}
           inputRef={ref}
           name={name}
-          value={loading ? '' : formik.values[name] || ''}
+          value={loading ? '' : currentValue || ''}
           onChange={handleChange}
           onBlur={handleBlur}
           error={hasError}

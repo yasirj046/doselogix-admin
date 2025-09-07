@@ -48,9 +48,14 @@ const AddProductDrawer = ({ open, stateChanger, oneProduct, setOneProduct }) => 
       .required('Product name is required')
       .trim()
       .max(200, 'Product name cannot exceed 200 characters'),
-    brandId: Yup.string().required('Brand is required'),
-    groupId: Yup.string().required('Group is required'),
-    subGroupId: Yup.string().required('Sub Group is required'),
+    brandId: Yup.string()
+      .required('Brand is required'),
+    groupId: Yup.string()
+      .nullable()
+      .trim(),
+    subGroupId: Yup.string()
+      .nullable()
+      .trim(),
     packingSize: Yup.string()
       .required('Packing size is required')
       .trim()
@@ -217,7 +222,6 @@ const AddProductDrawer = ({ open, stateChanger, oneProduct, setOneProduct }) => 
               label='Group'
               placeholder={formik.values.brandId ? 'Select Group' : 'First select a brand'}
               options={groups}
-              requiredField
               disabled={!formik.values.brandId}
               autoComplete={true}
             />
@@ -228,7 +232,6 @@ const AddProductDrawer = ({ open, stateChanger, oneProduct, setOneProduct }) => 
               label='Sub Group'
               placeholder={formik.values.groupId ? 'Select Sub Group' : 'First select a group'}
               options={subGroups}
-              requiredField
               disabled={!formik.values.groupId}
               autoComplete={true}
             />

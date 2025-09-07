@@ -307,12 +307,19 @@ const CustomInput = forwardRef((props, ref) => {
   // Get formik field props
   const fieldProps = formik.getFieldProps(name)
 
+  // Helper function to get nested value from object
+  const getNestedValue = (obj, path) => {
+    return path.split('.').reduce((o, p) => o && o[p], obj)
+  }
+
   // Determine error state
-  const hasError = (error && touched) || (formik.errors[name] && formik.touched[name])
-  const isValid = (!error && touched) || (!formik.errors[name] && formik.touched[name])
+  const nestedError = getNestedValue(formik.errors, name)
+  const nestedTouched = getNestedValue(formik.touched, name)
+  const hasError = (error && touched) || (nestedError && nestedTouched)
+  const isValid = (!error && touched) || (!nestedError && nestedTouched)
 
   // Get error message
-  const errorMessage = formik.errors[name]
+  const errorMessage = nestedError
 
   // Determine input type based on visibility toggle
   const inputType = isInputGroup && type === 'password' ? (inputVisibility ? 'password' : 'text') : type

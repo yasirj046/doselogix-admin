@@ -3,7 +3,6 @@
 // React Imports
 import { useEffect, useState } from 'react'
 
-
 // Next Imports
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
@@ -20,6 +19,7 @@ import { styled } from '@mui/material/styles'
 import MenuItem from '@mui/material/MenuItem'
 import Switch from '@mui/material/Switch'
 import CircularProgress from '@mui/material/CircularProgress'
+import Tooltip from '@mui/material/Tooltip'
 
 // Third-party Imports
 import { createColumnHelper, flexRender } from '@tanstack/react-table'
@@ -34,8 +34,9 @@ import CustomAvatar from '@core/components/mui/Avatar'
 import { getInitials } from '@/utils/getInitials'
 import { getLocalizedUrl } from '@/utils/i18n'
 import { lookupService } from '@/services/lookupService'
-import AddUserDrawer from './AddPurchaseInvoiceDrawer'
-import { customerService } from '@/services/customerService'
+import { brandService } from '@/services/brandService'
+import AddPurchaseInvoiceDrawer from './AddPurchaseInvoiceDrawer'
+import { purchaseInvoiceService } from '@/services/purchaseInvoiceService'
 
 // Styled Components
 const Icon = styled('i')({})
@@ -43,106 +44,159 @@ const Icon = styled('i')({})
 // Column Definitions
 const columnHelper = createColumnHelper()
 
-const UsersPage = () => {
+const PurchaseInvoicePage = () => {
   // States
-  const [oneUser, setOneUser] = useState(null)
-  const [addUserOpen, setAddUserOpen] = useState(false)
-  const [provinces, setProvinces] = useState([])
-  const [selectedProvince, setSelectedProvince] = useState('')
-  const [cities, setCities] = useState([])
+  const [onePurchaseEntry, setOnePurchaseEntry] = useState(null)
+  const [addPurchaseEntryOpen, setAddPurchaseEntryOpen] = useState(false)
+  const [brands, setBrands] = useState([])
   const [toggledId, setToggledId] = useState(null)
 
   // Hooks
   const { lang: locale } = useParams()
   const queryClient = useQueryClient()
 
-  // Using `useMutation` to toggle customer status
-  const { mutate: toggleStatus, isPending: isTogglingStatus } = customerService.toggleCustomerStatus()
+  // Using `useMutation` to toggle purchase entry status
+  const { mutate: toggleStatus, isPending: isTogglingStatus } = purchaseInvoiceService.togglePurchaseEntryStatus()
 
-  // Define columns for the customers table
+  // Define columns for the purchase entries table
   const columns = [
-    columnHelper.accessor('customerName', {
-      header: 'Customer',
+    columnHelper.accessor('invoiceNumber', {
+      header: 'Invoice #',
       cell: ({ row }) => (
-        <div className='flex items-center gap-4'>
-          {getAvatar({ avatar: null, fullName: row.original.customerName })}
+        <div className='flex items-center gap-3'>
+          <div className='flex items-center justify-center w-8 h-8 rounded bg-primary/10'>
+            <Icon className='tabler-receipt text-primary' />
+          </div>
           <div className='flex flex-col'>
             <Typography color='text.primary' className='font-medium'>
-              {row.original.customerName || 'N/A'}
+              {row.original.invoiceNumber || 'N/A'}
+            </Typography>
+            <Typography variant='body2' color='text.secondary'>
+              {row.original.date ? new Date(row.original.date).toLocaleDateString() : 'N/A'}
             </Typography>
           </div>
         </div>
       )
     }),
-    columnHelper.accessor('customerCategory', {
-      header: 'Category',
+    columnHelper.accessor('brandId', {
+      header: 'Brand',
       cell: ({ row }) => (
         <div className='flex items-center gap-2'>
-          <Icon className='tabler-building-store' sx={{ color: 'var(--mui-palette-primary-main)' }} />
+          <Icon className='tabler-brand-android' sx={{ color: 'var(--mui-palette-info-main)' }} />
           <Typography className='capitalize' color='text.primary'>
-            {row.original.customerCategory || 'N/A'}
+            {row.original.brandId?.brandName || row.original.brandName || 'N/A'}
           </Typography>
         </div>
       )
     }),
-    columnHelper.accessor('customerProvince', {
-      header: 'Location',
+    columnHelper.accessor('invoiceDate', {
+      header: 'Invoice Date',
       cell: ({ row }) => (
-        <Typography className='capitalize' color='text.primary'>
-          {row.original.customerCity}, {row.original.customerProvince}
+        <Typography color='text.primary'>
+          {row.original.invoiceDate ? new Date(row.original.invoiceDate).toLocaleDateString() : 'N/A'}
         </Typography>
       )
     }),
-    columnHelper.accessor('customerPrimaryContact', {
-      header: 'Contact',
-      cell: ({ row }) => <Typography>{row.original.customerPrimaryContact || 'N/A'}</Typography>
+    columnHelper.accessor('grossTotal', {
+      header: 'Gross Total',
+      cell: ({ row }) => (
+        <Typography className='font-medium' color='text.primary'>
+          ₨{row.original.grossTotal ? row.original.grossTotal.toLocaleString() : '0'}
+        </Typography>
+      )
     }),
-    columnHelper.accessor('customerLicenseStatus', {
-      header: 'License Status',
+    columnHelper.accessor('grandTotal', {
+      header: 'Grand Total',
+      cell: ({ row }) => (
+        <Typography className='font-semibold text-success-main'>
+          ₨{row.original.grandTotal ? row.original.grandTotal.toLocaleString() : '0'}
+        </Typography>
+      )
+    }),
+    columnHelper.accessor('cashPaid', {
+      header: 'Paid Amount',
+      cell: ({ row }) => (
+        <Typography color='text.primary'>
+          ₨{row.original.cashPaid ? row.original.cashPaid.toLocaleString() : '0'}
+        </Typography>
+      )
+    }),
+    columnHelper.accessor('creditAmount', {
+      header: 'Credit Amount',
       cell: ({ row }) => {
-        const status = row.original.customerLicenseStatus?.status || 'N/A'
-        const daysRemaining = row.original.customerLicenseStatus?.daysRemaining
-
-        let color = 'default'
-
-        if (status === 'VALID') color = 'success'
-        else if (status === 'URGENT') color = 'warning'
-        else if (status === 'EXPIRED') color = 'error'
-        else if (status === 'NOT_SET') color = 'secondary'
-
+        const creditAmount = row.original.creditAmount || 0
+        const color = creditAmount > 0 ? 'warning' : 'success'
+        
         return (
-          <div className='flex items-center gap-3'>
-            <Chip
-              variant='tonal'
-              label={`${status} ${daysRemaining ? `(${daysRemaining} days)` : ''}`}
-              size='small'
-              color={color}
-              className='capitalize'
-            />
-          </div>
+          <Chip
+            variant='tonal'
+            label={`₨${creditAmount.toLocaleString()}`}
+            size='small'
+            color={color}
+            className='font-medium'
+          />
         )
       }
     }),
-    columnHelper.accessor('customerStatus', {
+    columnHelper.accessor('paymentStatus', {
+      header: 'Payment Status',
+      cell: ({ row }) => {
+        const creditAmount = row.original.creditAmount || 0
+        const grandTotal = row.original.grandTotal || 0
+        const cashPaid = row.original.cashPaid || 0
+        
+        let status = 'Pending'
+        let color = 'warning'
+        
+        if (cashPaid >= grandTotal) {
+          status = 'Paid'
+          color = 'success'
+        } else if (cashPaid > 0) {
+          status = 'Partial'
+          color = 'info'
+        } else {
+          status = 'Unpaid'
+          color = 'error'
+        }
+
+        return (
+          <Chip
+            variant='tonal'
+            label={status}
+            size='small'
+            color={color}
+            className='capitalize font-medium'
+          />
+        )
+      }
+    }),
+    columnHelper.accessor('createdAt', {
+      header: 'Created Date',
+      cell: ({ row }) => (
+        <Typography color='text.primary'>
+          {row.original.createdAt ? new Date(row.original.createdAt).toLocaleDateString() : 'N/A'}
+        </Typography>
+      )
+    }),
+    columnHelper.accessor('isActive', {
       header: 'Status',
       cell: ({ row }) => {
-        const customerId = row.original.id
-        const isCurrentToggling = isTogglingStatus && toggledId === customerId
+        const purchaseEntryId = row.original._id || row.original.id
+        const isCurrentToggling = isTogglingStatus && toggledId === purchaseEntryId
 
         const handleToggle = () => {
-          setToggledId(customerId)
+          setToggledId(purchaseEntryId)
           toggleStatus(
-            { id: customerId },
+            { id: purchaseEntryId },
             {
               onSuccess: (response) => {
                 const statusText = response.data.result.isActive ? 'activated' : 'deactivated'
-
-                toast.success(`Customer ${statusText} successfully`)
-                queryClient.invalidateQueries(['get-all-customers'])
+                toast.success(`Purchase entry ${statusText} successfully`)
+                queryClient.invalidateQueries(['get-all-purchase-entries'])
               },
               onError: (error) => {
-                console.error('Failed to toggle customer status', error)
-                toast.error('Failed to update customer status')
+                console.error('Failed to toggle purchase entry status', error)
+                toast.error('Failed to update purchase entry status')
               },
               onSettled: () => {
                 setToggledId(null)
@@ -160,7 +214,7 @@ const UsersPage = () => {
                 checked={row.original.isActive}
                 onChange={handleToggle}
                 disabled={isTogglingStatus}
-                inputProps={{ 'aria-label': 'toggle customer status' }}
+                inputProps={{ 'aria-label': 'toggle purchase entry status' }}
               />
             )}
           </div>
@@ -171,15 +225,28 @@ const UsersPage = () => {
       header: 'Action',
       cell: ({ row }) => {
         return (
-          <div className='flex items-center'>
-            <IconButton onClick={() => {
-              setOneUser(row.original.id)
-              setAddUserOpen(true)
-            }}>
-              <div className='flex'>
+          <div className='flex items-center gap-1'>
+            <Tooltip title="Edit Purchase Entry">
+              <IconButton 
+                size="small"
+                onClick={() => {
+                  setOnePurchaseEntry(row.original._id || row.original.id)
+                  setAddPurchaseEntryOpen(true)
+                }}
+              >
                 <i className='tabler-edit text-textSecondary' />
-              </div>
-            </IconButton>
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="View Details">
+              <IconButton size="small">
+                <i className='tabler-eye text-textSecondary' />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="Print Invoice">
+              <IconButton size="small">
+                <i className='tabler-printer text-textSecondary' />
+              </IconButton>
+            </Tooltip>
           </div>
         )
       },
@@ -187,50 +254,37 @@ const UsersPage = () => {
     })
   ]
 
-  //Api call to get all provinces
-  const { data: provincesData } = lookupService.getAllProvinces('get-all-provinces')
+  //Api call to get all brands
+  const { data: brandsData } = brandService.getAllBrands('get-all-brands')
 
   useEffect(() => {
-    if (provincesData?.data?.success) {
-      setProvinces(provincesData.data.result)
+    if (brandsData?.data?.success) {
+      setBrands(brandsData.data.result.docs || brandsData.data.result || [])
     } else {
-      setProvinces([])
+      setBrands([])
     }
-  }, [provincesData])
+  }, [brandsData])
 
-  //Api call to get all cities by province
-  const { data: citiesData } = lookupService.getCitiesByProvince('get-cities-by-province', selectedProvince)
-
-  useEffect(() => {
-    if (citiesData?.data?.success) {
-      setCities(citiesData.data.result)
-    } else {
-      setCities([])
-    }
-  }, [citiesData])
-
-  // Define filters for the customers table
+  // Define filters for the purchase entries table
   const filters = {
     heading: 'Filters',
     filterArray: [
       {
-        label: 'Province',
-        dbColumn: 'customerProvince',
-        placeholder: 'Select Province',
-        options: provinces,
-        onChange: value => {
-          if (value == '') {
-            setCities([])
-          } else {
-            setSelectedProvince(value)
-          }
-        }
+        label: 'Brand',
+        dbColumn: 'brandId',
+        placeholder: 'Select Brand',
+        options: brands.map(brand => ({ value: brand._id, label: brand.brandName }))
       },
       {
-        label: 'Cities',
-        dbColumn: 'customerCity',
-        placeholder: 'Select City',
-        options: cities
+        label: 'Payment Status',
+        dbColumn: 'paymentStatus',
+        placeholder: 'Select Payment Status',
+        options: [
+          { value: 'paid', label: 'Paid' },
+          { value: 'partial', label: 'Partial' },
+          { value: 'unpaid', label: 'Unpaid' },
+          { value: 'pending', label: 'Pending' }
+        ]
       },
       {
         label: 'Status',
@@ -252,52 +306,56 @@ const UsersPage = () => {
     // Transform the data to flatten nested fields for better filtering
     return data.map(item => ({
       ...item,
-      id: item.id,
-
-      // Flatten license status for filtering
-      licenseStatus: item.customerLicenseStatus?.status || 'N/A',
+      id: item._id || item.id,
+      
+      // Calculate payment status for filtering
+      paymentStatus: (() => {
+        const creditAmount = item.creditAmount || 0
+        const grandTotal = item.grandTotal || 0
+        const cashPaid = item.cashPaid || 0
+        
+        if (cashPaid >= grandTotal) return 'paid'
+        if (cashPaid > 0) return 'partial'
+        if (creditAmount > 0) return 'pending'
+        return 'unpaid'
+      })(),
 
       // Add status for filtering
       status: item.isActive ? 'active' : 'inactive'
     }))
   }
 
-  const getAvatar = params => {
-    const { avatar, fullName } = params
-
-    if (avatar) {
-      return <CustomAvatar src={avatar} size={34} />
-    } else {
-      return <CustomAvatar size={34}>{getInitials(fullName || 'N/A')}</CustomAvatar>
-    }
-  }
-
   return (
     <>
-      {/* Top Section with Users heading and Add New User button */}
+      {/* Top Section with Purchase Entries heading and Add New Purchase Entry button */}
       <Card className='mb-6'>
         <div className='flex justify-between items-center p-6'>
-          <Typography variant='h4' component='h1'>
-            Customers
-          </Typography>
+          <div className='flex flex-col gap-1'>
+            <Typography variant='h4' component='h1'>
+              Purchase Invoices
+            </Typography>
+            <Typography variant='body2' color='text.secondary'>
+              Manage your purchase entries and inventory updates
+            </Typography>
+          </div>
           <Button
             variant='contained'
             startIcon={<i className='tabler-plus' />}
             onClick={() => {
-              setOneUser(null)
-              setAddUserOpen(!addUserOpen)
+              setOnePurchaseEntry(null)
+              setAddPurchaseEntryOpen(!addPurchaseEntryOpen)
             }}
             className='max-sm:is-full'
           >
-            Add New Customer
+            Add New Purchase Entry
           </Button>
         </div>
       </Card>
 
       {/* Custom Data Table */}
       <CustomDataTable
-        apiURL='/customers'
-        queryKey='get-all-customers'
+        apiURL='/purchase-entries'
+        queryKey='get-all-purchase-entries'
         columns={columns}
         filters={filters}
         enableSelection={true}
@@ -311,17 +369,17 @@ const UsersPage = () => {
         }}
       />
 
-      {/* Add User Drawer - Keep this if you have the component */}
-      {addUserOpen && (
-        <AddUserDrawer
-          open={addUserOpen}
-          stateChanger={() => setAddUserOpen(!addUserOpen)}
-          oneUser={oneUser}
-          setOneUser={setOneUser}
+      {/* Add Purchase Entry Drawer */}
+      {addPurchaseEntryOpen && (
+        <AddPurchaseInvoiceDrawer
+          open={addPurchaseEntryOpen}
+          stateChanger={() => setAddPurchaseEntryOpen(!addPurchaseEntryOpen)}
+          onePurchaseEntry={onePurchaseEntry}
+          setOnePurchaseEntry={setOnePurchaseEntry}
         />
       )}
     </>
   )
 }
 
-export default UsersPage
+export default PurchaseInvoicePage

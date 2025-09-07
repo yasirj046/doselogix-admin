@@ -102,8 +102,18 @@ export const API_URLS = {
   GET_MY_PURCHASE_INVOICES: '/purchase-invoices/my/invoices',
   GET_PURCHASE_INVOICE_STATS: '/purchase-invoices/stats',
   GET_PURCHASE_INVOICES_BY_VENDOR: '/purchase-invoices/vendor/', // + vendorId
-  GET_PURCHASE_INVOICES_BY_GROUP: '/purchase-invoices/group/', // + groupId
+  GET_PURCHASE_INVOICES_BY_GROUP: '/purchase-invoices/group/', // + groupId,
 
+  //Purchase Entries
+  GET_PURCHASE_ENTRIES: '/purchase-entries',
+  CREATE_PURCHASE_ENTRY: '/purchase-entries',
+  GET_PURCHASE_ENTRY_BY_ID: '/purchase-entries/', // + id
+  UPDATE_PURCHASE_ENTRY: '/purchase-entries/', // + id
+  DELETE_PURCHASE_ENTRY: '/purchase-entries/', // + id
+  TOGGLE_PURCHASE_ENTRY_STATUS: '/purchase-entries/', // + id + '/toggle-status'
+  GET_PURCHASE_STATS: '/purchase-entries/stats',
+    GET_PURCHASE_ENTRIES_BY_DATE_RANGE: '/purchase-entries/date-range',
+  
   //Lookup
   getAllProvinces: '/lookup/provinces',
   getCitiesByProvince: '/lookup/cities',
