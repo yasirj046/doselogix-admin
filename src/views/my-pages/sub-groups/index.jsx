@@ -22,9 +22,9 @@ import { useQueryClient } from '@tanstack/react-query'
 import CustomDataTable from '@components/custom-components/CustomDataTable'
 
 // Util Imports
-import { groupService } from '@/services/groupService'
+import { subGroupService } from '@/services/subGroupService'
 import { lookupService } from '@/services/lookupService'
-import AddGroupDrawer from './AddGroupDrawer'
+import AddSubGroupDrawer from './AddSubGroupDrawer'
 
 // Styled Components
 const Icon = styled('i')({})
@@ -32,61 +32,81 @@ const Icon = styled('i')({})
 // Column Definitions
 const columnHelper = createColumnHelper()
 
-const GroupsPage = () => {
+const SubGroupsPage = () => {
   // States
-  const [oneGroup, setOneGroup] = useState(null)
-  const [addGroupOpen, setAddGroupOpen] = useState(false)
+  const [oneSubGroup, setOneSubGroup] = useState(null)
+  const [addSubGroupOpen, setAddSubGroupOpen] = useState(false)
   const [brands, setBrands] = useState([])
+  const [groups, setGroups] = useState([])
   const [toggledId, setToggledId] = useState(null)
+  const [selectedBrandId, setSelectedBrandId] = useState('')
 
   // Hooks
   const queryClient = useQueryClient()
 
-  // Using `useMutation` to toggle group status
-  const { mutate: toggleStatus, isPending: isTogglingStatus } = groupService.toggleGroupStatus()
+  // Using `useMutation` to toggle sub group status
+  const { mutate: toggleStatus, isPending: isTogglingStatus } = subGroupService.toggleSubGroupStatus()
 
-  // Define columns for the groups table
+  // Define columns for the sub groups table
   const columns = [
-    columnHelper.accessor('groupName', {
-      header: 'Group',
+    columnHelper.accessor('subGroupName', {
+      header: 'Sub Group',
       cell: ({ row }) => (
         <div className='flex items-center gap-4'>
           <div className='flex items-center gap-2'>
-            <Icon className='tabler-stack-2' sx={{ color: 'var(--mui-palette-primary-main)' }} />
+            <Icon className='tabler-category' sx={{ color: 'var(--mui-palette-primary-main)' }} />
             <div className='flex flex-col'>
               <Typography color='text.primary' className='font-medium'>
-                {row.original.groupName || 'N/A'}
+                {row.original.subGroupName || 'N/A'}
               </Typography>
             </div>
           </div>
         </div>
       )
     }),
-    columnHelper.accessor('createdAt', {
-      header: 'Created Date',
-      cell: ({ row }) => (
-        <Typography color='text.primary'>
-          {row.original.createdAt ? new Date(row.original.createdAt).toLocaleDateString() : 'N/A'}
-        </Typography>
-      )
+    columnHelper.accessor('groupId', {
+      header: 'Group',
+      cell: ({ row }) => {
+        // Get group name from populated groupId field
+        let groupName = 'N/A'
+
+        if (row.original.groupId) {
+          // If groupId is populated (object), get groupName directly
+          if (typeof row.original.groupId === 'object' && row.original.groupId.groupName) {
+            groupName = row.original.groupId.groupName
+          }
+          // If groupId is just an ID string, find from groups array
+          else if (typeof row.original.groupId === 'string') {
+            const group = groups.find(g => g._id === row.original.groupId)
+            groupName = group?.groupName || 'N/A'
+          }
+        }
+
+        return (
+          <div className='flex items-center gap-2'>
+            <Icon className='tabler-stack-2' sx={{ color: 'var(--mui-palette-primary-main)' }} />
+            <Typography className='capitalize' color='text.primary'>
+              {groupName}
+            </Typography>
+          </div>
+        )
+      }
     }),
     columnHelper.accessor('brandId', {
       header: 'Brand',
       cell: ({ row }) => {
-        // Get brand name from populated brandId field or fallback to brands array lookup
+        // Get brand name from nested populated structure
         let brandName = 'N/A'
 
-        if (row.original.brandId) {
-          // If brandId is populated (object), get brandName directly
-          if (typeof row.original.brandId === 'object' && row.original.brandId.brandName) {
-            brandName = row.original.brandId.brandName
-          }
-
-          // If brandId is just an ID string, find from brands array
-          else if (typeof row.original.brandId === 'string') {
-            const brand = brands.find(b => b._id === row.original.brandId)
-
-            brandName = brand?.brandName || 'N/A'
+        if (row.original.groupId && typeof row.original.groupId === 'object') {
+          if (row.original.groupId.brandId) {
+            if (typeof row.original.groupId.brandId === 'object' && row.original.groupId.brandId.brandName) {
+              brandName = row.original.groupId.brandId.brandName
+            }
+            else if (typeof row.original.groupId.brandId === 'string') {
+              const brand = brands.find(b => b._id === row.original.groupId.brandId)
+              brandName = brand?.brandName || 'N/A'
+            }
           }
         }
 
@@ -100,25 +120,33 @@ const GroupsPage = () => {
         )
       }
     }),
+    columnHelper.accessor('createdAt', {
+      header: 'Created Date',
+      cell: ({ row }) => (
+        <Typography color='text.primary'>
+          {row.original.createdAt ? new Date(row.original.createdAt).toLocaleDateString() : 'N/A'}
+        </Typography>
+      )
+    }),
     columnHelper.accessor('isActive', {
       header: 'Status',
       cell: ({ row }) => {
-        const groupId = row.original._id
-        const isCurrentToggling = isTogglingStatus && toggledId === groupId
+        const subGroupId = row.original._id
+        const isCurrentToggling = isTogglingStatus && toggledId === subGroupId
 
         const handleToggle = () => {
-          setToggledId(groupId)
+          setToggledId(subGroupId)
           toggleStatus(
-            { id: groupId },
+            { id: subGroupId },
             {
               onSuccess: (response) => {
                 const statusText = response.data.result.isActive ? 'activated' : 'deactivated'
-                toast.success(`Group ${statusText} successfully`)
-                queryClient.invalidateQueries(['get-all-groups'])
+                toast.success(`Sub group ${statusText} successfully`)
+                queryClient.invalidateQueries(['get-all-sub-groups'])
               },
               onError: (error) => {
-                console.error('Failed to toggle group status', error)
-                toast.error('Failed to update group status')
+                console.error('Failed to toggle sub group status', error)
+                toast.error('Failed to update sub group status')
               },
               onSettled: () => {
                 setToggledId(null)
@@ -136,7 +164,7 @@ const GroupsPage = () => {
                 checked={row.original.isActive}
                 onChange={handleToggle}
                 disabled={isTogglingStatus}
-                inputProps={{ 'aria-label': 'toggle group status' }}
+                inputProps={{ 'aria-label': 'toggle sub group status' }}
               />
             )}
           </div>
@@ -149,8 +177,8 @@ const GroupsPage = () => {
         return (
           <div className='flex items-center'>
             <IconButton onClick={() => {
-              setOneGroup(row.original._id)
-              setAddGroupOpen(true)
+              setOneSubGroup(row.original._id)
+              setAddSubGroupOpen(true)
             }}>
               <div className='flex'>
                 <i className='tabler-edit text-textSecondary' />
@@ -163,24 +191,41 @@ const GroupsPage = () => {
     })
   ]
 
-  //Api call to get all active brands for filters
+  // Api call to get all brands for filters
   const { data: brandsData } = lookupService.getBrandsLookup('get-brands-lookup')
+
+  // Api call to get groups based on selected brand (dependent filter)
+  const { data: groupsData } = lookupService.getGroupsLookup('get-groups-lookup', selectedBrandId)
 
   useEffect(() => {
     if (brandsData?.data?.success) {
-      setBrands(brandsData.data.result || [])
+      setBrands(brandsData.data.result.docs || brandsData.data.result || [])
     } else {
       setBrands([])
     }
   }, [brandsData])
 
-  // Transform brands for filter options - ensure brands array is populated
+  useEffect(() => {
+    if (groupsData?.data?.success) {
+      setGroups(groupsData.data.result.docs || groupsData.data.result || [])
+    } else {
+      setGroups([])
+    }
+  }, [groupsData])
+
+  // Transform brands for filter options
   const brandOptions = brands.length > 0 ? brands.map(brand => ({
-    value: brand.value,
-    label: brand.label
+    value: brand.value || brand._id,
+    label: brand.label || brand.brandName
   })) : []
 
-  // Define filters for the groups table
+  // Transform groups for filter options
+  const groupOptions = groups.length > 0 ? groups.map(group => ({
+    value: group.value || group._id,
+    label: group.label || group.groupName
+  })) : []
+
+  // Define filters for the sub groups table
   const filters = {
     heading: 'Filters',
     filterArray: [
@@ -188,7 +233,20 @@ const GroupsPage = () => {
         label: 'Brand',
         dbColumn: 'brandId',
         placeholder: 'Select Brand',
-        options: brandOptions
+        options: brandOptions,
+        onChange: (value) => {
+          setSelectedBrandId(value)
+          // Clear groups when brand changes to avoid stale data
+          if (!value) {
+            setGroups([])
+          }
+        }
+      },
+      {
+        label: 'Group',
+        dbColumn: 'groupId',
+        placeholder: 'Select Group',
+        options: groupOptions
       },
       {
         label: 'Status',
@@ -216,30 +274,30 @@ const GroupsPage = () => {
 
   return (
     <>
-      {/* Top Section with Groups heading and Add New Group button */}
+      {/* Top Section with Sub Groups heading and Add New Sub Group button */}
       <Card className='mb-6'>
         <div className='flex justify-between items-center p-6'>
           <Typography variant='h4' component='h1'>
-            Groups
+            Sub Groups
           </Typography>
           <Button
             variant='contained'
             startIcon={<i className='tabler-plus' />}
             onClick={() => {
-              setOneGroup(null)
-              setAddGroupOpen(!addGroupOpen)
+              setOneSubGroup(null)
+              setAddSubGroupOpen(!addSubGroupOpen)
             }}
             className='max-sm:is-full'
           >
-            Add New Group
+            Add New Sub Group
           </Button>
         </div>
       </Card>
 
       {/* Custom Data Table */}
       <CustomDataTable
-        apiURL='/groups'
-        queryKey='get-all-groups'
+        apiURL='/subgroups'
+        queryKey='get-all-sub-groups'
         columns={columns}
         filters={filters}
         enableSelection={true}
@@ -253,17 +311,17 @@ const GroupsPage = () => {
         }}
       />
 
-      {/* Add Group Drawer */}
-      {addGroupOpen && (
-        <AddGroupDrawer
-          open={addGroupOpen}
-          stateChanger={() => setAddGroupOpen(!addGroupOpen)}
-          oneGroup={oneGroup}
-          setOneGroup={setOneGroup}
+      {/* Add Sub Group Drawer */}
+      {addSubGroupOpen && (
+        <AddSubGroupDrawer
+          open={addSubGroupOpen}
+          stateChanger={() => setAddSubGroupOpen(!addSubGroupOpen)}
+          oneSubGroup={oneSubGroup}
+          setOneSubGroup={setOneSubGroup}
         />
       )}
     </>
   )
 }
 
-export default GroupsPage
+export default SubGroupsPage

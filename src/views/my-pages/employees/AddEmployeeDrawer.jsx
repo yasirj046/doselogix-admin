@@ -246,6 +246,7 @@ const AddEmployeeDrawer = props => {
               options={cities}
               requiredField
               loading={citiesLoading}
+              autoComplete={true}
             />
 
             <CustomInput name='address' label='Address' placeholder='123 Main St' requiredField />
@@ -304,6 +305,7 @@ const AddEmployeeDrawer = props => {
               options={designations}
               requiredField
               loading={designationsLoading}
+              autoComplete={true}
             />
 
             <div className='flex items-center gap-4'>

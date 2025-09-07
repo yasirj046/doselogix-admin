@@ -28,8 +28,7 @@ import CustomAvatar from '@core/components/mui/Avatar'
 import { getInitials } from '@/utils/getInitials'
 import { getLocalizedUrl } from '@/utils/i18n'
 import { productService } from '@/services/productService'
-import { brandService } from '@/services/brandService'
-import { groupService } from '@/services/groupService'
+import { lookupService } from '@/services/lookupService'
 import AddProductDrawer from './AddProductDrawer'
 
 // Styled Components
@@ -45,6 +44,11 @@ const ProductsPage = () => {
   const [toggledId, setToggledId] = useState(null)
   const [brands, setBrands] = useState([])
   const [groups, setGroups] = useState([])
+  const [subGroups, setSubGroups] = useState([])
+
+  // States for tracking selected filter values for dependencies
+  const [selectedBrand, setSelectedBrand] = useState('')
+  const [selectedGroup, setSelectedGroup] = useState('')
 
   // Hooks
   const { lang: locale } = useParams()
@@ -53,13 +57,14 @@ const ProductsPage = () => {
   // Using `useMutation` to toggle product status
   const { mutate: toggleStatus, isPending: isTogglingStatus } = productService.toggleProductStatus()
 
-  // API calls for filter data
-  const { data: brandsData } = brandService.getAllBrands('get-all-brands')
-  const { data: groupsData } = groupService.getAllGroups('get-all-groups')
+  // API calls for filter data with dependencies
+  const { data: brandsData } = lookupService.getBrandsLookup('get-brands-lookup')
+  const { data: groupsData } = lookupService.getGroupsLookup('get-groups-lookup', selectedBrand)
+  const { data: subGroupsData } = lookupService.getSubGroupsLookup('get-subgroups-lookup', selectedGroup, selectedBrand)
 
   useEffect(() => {
     if (brandsData?.data?.success) {
-      setBrands(brandsData.data.result?.docs || brandsData.data.result || [])
+      setBrands(brandsData.data.result || [])
     } else {
       setBrands([])
     }
@@ -67,11 +72,42 @@ const ProductsPage = () => {
 
   useEffect(() => {
     if (groupsData?.data?.success) {
-      setGroups(groupsData.data.result?.docs || groupsData.data.result || [])
+      setGroups(groupsData.data.result || [])
     } else {
       setGroups([])
     }
   }, [groupsData])
+
+  useEffect(() => {
+    if (subGroupsData?.data?.success) {
+      setSubGroups(subGroupsData.data.result || [])
+    } else {
+      setSubGroups([])
+    }
+  }, [subGroupsData])
+
+  // Handlers for dependent filter changes
+  const handleBrandChange = (value) => {
+    setSelectedBrand(value)
+    setSelectedGroup('') // Reset group when brand changes
+
+    // Invalidate and refetch dependent queries
+    queryClient.invalidateQueries(['get-groups-lookup'])
+    queryClient.invalidateQueries(['get-subgroups-lookup'])
+
+    // Reset the table filters by invalidating all products queries
+    queryClient.invalidateQueries({ queryKey: ['get-all-products'], exact: false })
+  }
+
+  const handleGroupChange = (value) => {
+    setSelectedGroup(value)
+
+    // Invalidate and refetch dependent queries
+    queryClient.invalidateQueries(['get-subgroups-lookup'])
+
+    // Reset the table filters by invalidating all products queries
+    queryClient.invalidateQueries({ queryKey: ['get-all-products'], exact: false })
+  }
 
   // Define columns for the products table
   const columns = [
@@ -95,25 +131,32 @@ const ProductsPage = () => {
       header: 'Brand',
       cell: ({ row }) => (
         <div className='flex items-center gap-2'>
-          <Icon className='tabler-brand-tabler' sx={{ color: 'var(--mui-palette-primary-main)' }} />
+          <Icon className='tabler-building-store' sx={{ color: 'var(--mui-palette-primary-main)' }} />
           <Typography color='text.primary'>
             {row.original.brandId?.brandName || 'N/A'}
           </Typography>
         </div>
       )
     }),
-    columnHelper.accessor('groupId', {
-      header: 'Group/Category',
+    columnHelper.accessor('groupId.groupName', {
+      header: 'Group',
       cell: ({ row }) => (
-        <div className='flex flex-col'>
-          <Typography color='text.primary' className='font-medium'>
-            {row.original.groupId?.group || 'N/A'}
+        <div className='flex items-center gap-2'>
+          <Icon className='tabler-stack-2' sx={{ color: 'var(--mui-palette-primary-main)' }} />
+          <Typography color='text.primary'>
+            {row.original.groupId?.groupName || 'N/A'}
           </Typography>
-          {row.original.groupId?.subGroup && (
-            <Typography variant='body2' color='text.secondary'>
-              {row.original.groupId.subGroup}
-            </Typography>
-          )}
+        </div>
+      )
+    }),
+    columnHelper.accessor('subGroupId.subGroupName', {
+      header: 'Sub Group',
+      cell: ({ row }) => (
+        <div className='flex items-center gap-2'>
+          <Icon className='tabler-category' sx={{ color: 'var(--mui-palette-primary-main)' }} />
+          <Typography color='text.primary'>
+            {row.original.subGroupId?.subGroupName || 'N/A'}
+          </Typography>
         </div>
       )
     }),
@@ -128,6 +171,14 @@ const ProductsPage = () => {
             <strong>Carton:</strong> {row.original.cartonSize || 'N/A'}
           </Typography>
         </div>
+      )
+    }),
+    columnHelper.accessor('createdAt', {
+      header: 'Date Added',
+      cell: ({ row }) => (
+        <Typography color='text.primary'>
+          {row.original.createdAt ? new Date(row.original.createdAt).toLocaleDateString() : 'N/A'}
+        </Typography>
       )
     }),
     columnHelper.accessor('isActive', {
@@ -177,17 +228,28 @@ const ProductsPage = () => {
         dbColumn: 'brandId',
         placeholder: 'Select Brand',
         options: brands.map(brand => ({
-          value: brand._id,
-          label: brand.brandName
-        }))
+          value: brand.value,
+          label: brand.label
+        })),
+        onChange: handleBrandChange
       },
       {
         label: 'Group',
         dbColumn: 'groupId',
         placeholder: 'Select Group',
         options: groups.map(group => ({
-          value: group._id,
-          label: `${group.group}${group.subGroup ? ` - ${group.subGroup}` : ''}`
+          value: group.value,
+          label: group.label
+        })),
+        onChange: handleGroupChange
+      },
+      {
+        label: 'Sub Group',
+        dbColumn: 'subGroupId',
+        placeholder: 'Select Sub Group',
+        options: subGroups.map(subGroup => ({
+          value: subGroup.value,
+          label: subGroup.label
         }))
       },
       {
@@ -213,10 +275,10 @@ const ProductsPage = () => {
       id: item._id,
       // Add status for filtering
       status: item.isActive ? 'Active' : 'Inactive',
-      // Flatten brand and group for filtering
+      // Flatten brand, group, and subgroup for filtering
       brandName: item.brandId?.brandName || '',
-      groupName: item.groupId?.group || '',
-      subGroupName: item.groupId?.subGroup || ''
+      groupName: item.groupId?.groupName || '',
+      subGroupName: item.subGroupId?.subGroupName || ''
     }))
   }
 
@@ -225,7 +287,7 @@ const ProductsPage = () => {
     setToggledId(id)
     toggleStatus(id, {
       onSuccess: () => {
-        queryClient.invalidateQueries(['get-all-products'])
+        queryClient.invalidateQueries({ queryKey: ['get-all-products'], exact: false })
         toast.success('Product status updated successfully')
       },
       onError: error => {
@@ -278,7 +340,7 @@ const ProductsPage = () => {
       {/* Custom Data Table */}
       <CustomDataTable
         apiURL='/products'
-        queryKey='get-all-products'
+        queryKey={`get-all-products-${selectedBrand}-${selectedGroup}`}
         columns={columns}
         filters={filters}
         enableSelection={true}

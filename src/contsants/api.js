@@ -42,6 +42,18 @@ export const API_URLS = {
   DELETE_AREA: '/areas/', // + id
   TOGGLE_AREA_STATUS: '/areas/', // + id + '/toggle-status'
 
+  //Sub Areas
+  GET_SUB_AREAS: '/subareas',
+  CREATE_SUB_AREA: '/subareas',
+  GET_SUB_AREA_BY_ID: '/subareas/', // + id
+  UPDATE_SUB_AREA: '/subareas/', // + id
+  DELETE_SUB_AREA: '/subareas/', // + id
+  TOGGLE_SUB_AREA_STATUS: '/subareas/', // + id + '/toggle-status'
+  GET_MY_SUB_AREAS: '/subareas/my/subareas',
+  GET_SUB_AREAS_BY_VENDOR: '/subareas/vendor/subareas',
+  GET_SUB_AREAS_BY_AREA: '/subareas/area/', // + areaId
+  GET_SUB_AREAS_BY_NAME: '/subareas/search/', // + subAreaName
+
   //Groups
   GET_GROUPS: '/groups',
   CREATE_GROUP: '/groups',
@@ -54,7 +66,16 @@ export const API_URLS = {
   GET_GROUPS_BY_BRAND: '/groups/brand/', // + brandId
   GET_UNIQUE_GROUPS_BY_BRAND: '/groups/unique/brand/', // + brandId
   GET_ALL_UNIQUE_GROUPS: '/groups/unique/all',
-  GET_SUB_GROUPS: '/groups/subgroups',
+  //Sub Groups
+  GET_SUB_GROUPS: '/subgroups',
+  CREATE_SUB_GROUP: '/subgroups',
+  GET_SUB_GROUP_BY_ID: '/subgroups/', // + id
+  UPDATE_SUB_GROUP: '/subgroups/', // + id
+  DELETE_SUB_GROUP: '/subgroups/', // + id
+  TOGGLE_SUB_GROUP_STATUS: '/subgroups/', // + id + '/toggle-status'
+  GET_MY_SUB_GROUPS: '/subgroups/my/subgroups',
+  GET_SUB_GROUPS_BY_GROUP: '/subgroups/group/', // + groupId
+  GET_SUB_GROUPS_BY_NAME: '/subgroups/search/', // + subGroupName
   GET_GROUPS_BY_NAME: '/groups/search/', // + group
 
   //Products
@@ -68,6 +89,20 @@ export const API_URLS = {
   GET_PRODUCT_STATS: '/products/stats',
   GET_PRODUCTS_BY_BRAND: '/products/brand/', // + brandId
   GET_PRODUCTS_BY_GROUP: '/products/group/', // + groupId
+  GET_PRODUCTS_BY_SUBGROUP: '/products/subgroup/', // + subGroupId
+
+
+  // Purchase Invoices
+  GET_PURCHASE_INVOICES: '/purchase-invoices',
+  CREATE_PURCHASE_INVOICE: '/purchase-invoices',
+  GET_PURCHASE_INVOICE_BY_ID: '/purchase-invoices/', // + id
+  UPDATE_PURCHASE_INVOICE: '/purchase-invoices/', // + id
+  DELETE_PURCHASE_INVOICE: '/purchase-invoices/', // + id
+  TOGGLE_PURCHASE_INVOICE_STATUS: '/purchase-invoices/', // + id + '/toggle-status'
+  GET_MY_PURCHASE_INVOICES: '/purchase-invoices/my/invoices',
+  GET_PURCHASE_INVOICE_STATS: '/purchase-invoices/stats',
+  GET_PURCHASE_INVOICES_BY_VENDOR: '/purchase-invoices/vendor/', // + vendorId
+  GET_PURCHASE_INVOICES_BY_GROUP: '/purchase-invoices/group/', // + groupId
 
   //Lookup
   getAllProvinces: '/lookup/provinces',
@@ -77,4 +112,7 @@ export const API_URLS = {
   getAllCities: '/lookup/all-cities',
   getAreasLookup: '/lookup/areas',
   getSubAreasLookup: '/lookup/subareas',
+  getBrandsLookup: '/lookup/brands',
+  getGroupsLookup: '/lookup/groups',
+  getSubGroupsLookup: '/lookup/subgroups',
 }

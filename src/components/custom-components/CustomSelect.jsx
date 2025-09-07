@@ -16,6 +16,10 @@ import FormHelperText from '@mui/material/FormHelperText'
 import { v4 as uuidv4 } from 'uuid'
 import classNames from 'classnames'
 
+// Component Imports
+import CustomAutocomplete from '@core/components/mui/Autocomplete'
+import CustomTextField from '@core/components/mui/TextField'
+
 // Context Imports
 import { FormikContext } from '../../contexts/formikContext'
 
@@ -174,10 +178,14 @@ const CustomSelect = forwardRef((props, ref) => {
     handleInputChange,
     defaultValue,
     onBlur,
+    freeSolo = false, // New prop for autocomplete functionality
+    autoComplete = false, // New prop to enable autocomplete mode
     ...rest
   } = props
 
   const [selectedOption, setSelectedOption] = useState(null)
+  const [inputValue, setInputValue] = useState('') // For autocomplete input
+  const [filteredOptions, setFilteredOptions] = useState(options) // For filtering options
 
   // If no formik context, show error
   if (!formik) {
@@ -197,9 +205,36 @@ const CustomSelect = forwardRef((props, ref) => {
   useEffect(() => {
     const selected = options.find(option => option.value == formik.values[name])
     setSelectedOption(selected || null)
-  }, [formik.values[name], options])
 
-  // Handle change
+    // Set input value for autocomplete
+    if (autoComplete || freeSolo) {
+      if (selected) {
+        setInputValue(selected.label)
+      } else if (freeSolo && formik.values[name]) {
+        setInputValue(formik.values[name])
+      } else {
+        setInputValue('')
+      }
+    }
+  }, [formik.values[name], options, autoComplete, freeSolo])
+
+  // Filter options based on input value
+  useEffect(() => {
+    if (autoComplete || freeSolo) {
+      if (inputValue) {
+        const filtered = options.filter(option =>
+          option.label.toLowerCase().includes(inputValue.toLowerCase())
+        )
+        setFilteredOptions(filtered)
+      } else {
+        setFilteredOptions(options)
+      }
+    } else {
+      setFilteredOptions(options)
+    }
+  }, [inputValue, options, autoComplete, freeSolo])
+
+  // Handle change for regular select
   const handleChange = event => {
     const value = event.target.value
     formik.setFieldValue(name, value)
@@ -207,6 +242,35 @@ const CustomSelect = forwardRef((props, ref) => {
     // Find the selected option and update local state
     const selected = options.find(option => option.value === value)
     setSelectedOption(selected || null)
+  }
+
+  // Handle autocomplete change
+  const handleAutocompleteChange = (event, newValue) => {
+    if (typeof newValue === 'string') {
+      // Free solo input
+      formik.setFieldValue(name, newValue)
+      setInputValue(newValue)
+    } else if (newValue && newValue.value) {
+      // Selected from options
+      formik.setFieldValue(name, newValue.value)
+      setSelectedOption(newValue)
+      setInputValue(newValue.label)
+    } else {
+      // Cleared
+      formik.setFieldValue(name, '')
+      setSelectedOption(null)
+      setInputValue('')
+    }
+  }
+
+  // Handle input change for autocomplete
+  const handleInputValueChange = (event, newInputValue) => {
+    setInputValue(newInputValue)
+
+    // If freeSolo is enabled, update formik value as user types
+    if (freeSolo) {
+      formik.setFieldValue(name, newInputValue)
+    }
   }
 
   // Handle blur
@@ -218,6 +282,100 @@ const CustomSelect = forwardRef((props, ref) => {
 
   const isDisabled = disabled || loading || formik.isLoading
 
+  // Render autocomplete version
+  if (autoComplete || freeSolo) {
+    return (
+      <div className={classNames(className)}>
+        {label && (
+          <InputLabel
+            htmlFor={uniqueId}
+            sx={{
+              transform: 'none',
+              width: 'fit-content',
+              maxWidth: '100%',
+              lineHeight: 1.153,
+              position: 'relative',
+              fontSize: 'body2.fontSize',
+              marginBottom: 1,
+              color: 'text.primary',
+              '&.Mui-error': {
+                color: 'error.main'
+              }
+            }}
+            error={hasError}
+          >
+            {label}
+            {requiredField && <span style={{ marginLeft: '4px', color: 'var(--mui-palette-error-main)' }}>*</span>}
+          </InputLabel>
+        )}
+
+        <Box sx={{ position: 'relative' }}>
+          <CustomAutocomplete
+            id={uniqueId}
+            freeSolo={freeSolo}
+            options={filteredOptions}
+            getOptionLabel={(option) => {
+              if (typeof option === 'string') {
+                return option
+              }
+              return option.label || ''
+            }}
+            value={selectedOption}
+            inputValue={inputValue}
+            onChange={handleAutocompleteChange}
+            onInputChange={handleInputValueChange}
+            onBlur={handleBlur}
+            disabled={isDisabled}
+            loading={loading}
+            size={size}
+            renderInput={(params) => (
+              <CustomTextField
+                {...params}
+                placeholder={placeholder}
+                error={hasError}
+                fullWidth
+                InputProps={{
+                  ...params.InputProps,
+                  endAdornment: (
+                    <>
+                      {loading ? <CircularProgress size={20} /> : null}
+                      {params.InputProps.endAdornment}
+                    </>
+                  )
+                }}
+                {...rest}
+              />
+            )}
+            renderOption={(props, option) => (
+              <Box component="li" {...props}>
+                {option.label}
+              </Box>
+            )}
+            noOptionsText={loading ? "Loading..." : "No options available"}
+            filterOptions={(options, { inputValue }) => {
+              // Custom filtering is already handled in useEffect
+              return options
+            }}
+          />
+        </Box>
+
+        {hasError && errorMessage && (
+          <FormHelperText
+            error
+            sx={{
+              lineHeight: 1.154,
+              margin: '4px 0 0',
+              fontSize: 'body2.fontSize'
+            }}
+          >
+            {errorMessage}
+          </FormHelperText>
+        )}
+      </div>
+    )
+  }
+
+  // Render regular select version
   return (
     <div className={classNames(className)}>
       {label && (

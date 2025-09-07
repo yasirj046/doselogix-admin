@@ -86,6 +86,14 @@ const BrandsPage = () => {
         </div>
       )
     }),
+    columnHelper.accessor('createdAt', {
+          header: 'Created Date',
+          cell: ({ row }) => (
+            <Typography color='text.primary'>
+              {row.original.createdAt ? new Date(row.original.createdAt).toLocaleDateString() : 'N/A'}
+            </Typography>
+          )
+        }),
     columnHelper.accessor('isActive', {
       header: 'Status',
       cell: ({ row }) => {

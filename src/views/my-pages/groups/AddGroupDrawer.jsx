@@ -2,10 +2,8 @@
 
 // React Imports
 import { useEffect, useState } from 'react'
-import { toast } from 'react-toastify'
 
-// Next Imports
-import { useParams } from 'next/navigation'
+import { toast } from 'react-toastify'
 
 // MUI Imports
 import Drawer from '@mui/material/Drawer'
@@ -27,7 +25,7 @@ import CustomButton from '@/components/custom-components/CustomButton'
 
 // Service Imports
 import { groupService } from '@/services/groupService'
-import { brandService } from '@/services/brandService'
+import { lookupService } from '@/services/lookupService'
 
 const AddGroupDrawer = ({ open, stateChanger, oneGroup, setOneGroup }) => {
   // States
@@ -35,7 +33,6 @@ const AddGroupDrawer = ({ open, stateChanger, oneGroup, setOneGroup }) => {
   const [oneGroupData, setOneGroupData] = useState(null)
 
   // Hooks
-  const { lang: locale } = useParams()
   const queryClient = useQueryClient()
 
   // API mutations
@@ -45,12 +42,12 @@ const AddGroupDrawer = ({ open, stateChanger, oneGroup, setOneGroup }) => {
   // API call to get one group details
   const { data: fetchedOneGroupData } = groupService.getOneGroupDetails('get-one-group', oneGroup)
 
-  // API call to get all brands
-  const { data: brandsData, isFetching: brandsLoading } = brandService.getAllBrands('get-all-brands')
+  // API call to get all active brands only
+  const { data: brandsData, isFetching: brandsLoading } = lookupService.getBrandsLookup('get-brands-lookup')
 
   useEffect(() => {
     if (brandsData?.data?.success) {
-      setBrands(brandsData.data.result.docs || brandsData.data.result || [])
+      setBrands(brandsData.data.result || [])
     } else {
       setBrands([])
     }
@@ -66,8 +63,7 @@ const AddGroupDrawer = ({ open, stateChanger, oneGroup, setOneGroup }) => {
     if (oneGroupData) {
       formik.setValues({
         brandId: (typeof oneGroupData.brandId === 'object' ? oneGroupData.brandId._id : oneGroupData.brandId) || '',
-        group: oneGroupData.group || '',
-        subGroup: oneGroupData.subGroup || ''
+        groupName: oneGroupData.groupName || ''
       })
     }
   }, [oneGroupData])
@@ -75,22 +71,17 @@ const AddGroupDrawer = ({ open, stateChanger, oneGroup, setOneGroup }) => {
   // Form validation schema
   const validationSchema = Yup.object().shape({
     brandId: Yup.string().required('Brand is required'),
-    group: Yup.string()
+    groupName: Yup.string()
       .required('Group name is required')
       .trim()
-      .max(200, 'Group name cannot exceed 200 characters'),
-    subGroup: Yup.string()
-      .required('Sub group is required')
-      .trim()
-      .max(200, 'Sub group cannot exceed 200 characters')
+      .max(200, 'Group name cannot exceed 200 characters')
   })
 
   // Formik instance
   const formik = useFormik({
     initialValues: {
       brandId: '',
-      group: '',
-      subGroup: ''
+      groupName: ''
     },
     validationSchema,
     enableReinitialize: true,
@@ -107,7 +98,6 @@ const AddGroupDrawer = ({ open, stateChanger, oneGroup, setOneGroup }) => {
               if (response.data.success) {
                 toast.success(response.data.message || 'Group updated successfully')
                 queryClient.invalidateQueries(['get-all-groups'])
-                queryClient.invalidateQueries(['get-all-unique-groups'])
                 closeModal()
               } else {
                 toast.error(response.data.message || 'Error updating group')
@@ -124,7 +114,6 @@ const AddGroupDrawer = ({ open, stateChanger, oneGroup, setOneGroup }) => {
             if (response.data.success) {
               toast.success(response.data.message || 'Group created successfully')
               queryClient.invalidateQueries(['get-all-groups'])
-              queryClient.invalidateQueries(['get-all-unique-groups'])
               closeModal()
             } else {
               toast.error(response.data.message || 'Error creating group')
@@ -148,8 +137,8 @@ const AddGroupDrawer = ({ open, stateChanger, oneGroup, setOneGroup }) => {
 
   // Transform brands for dropdown options
   const brandOptions = brands.map(brand => ({
-    value: brand._id,
-    label: brand.brandName
+    value: brand.value,
+    label: brand.label
   }))
 
   return (
@@ -178,19 +167,13 @@ const AddGroupDrawer = ({ open, stateChanger, oneGroup, setOneGroup }) => {
               options={brandOptions}
               requiredField
               loading={brandsLoading}
+              autoComplete={true}
             />
 
             <CustomInput
-              name='group'
+              name='groupName'
               label='Group Name'
               placeholder='Enter group name'
-              requiredField
-            />
-
-            <CustomInput
-              name='subGroup'
-              label='Sub Group'
-              placeholder='Enter sub group name'
               requiredField
             />
 

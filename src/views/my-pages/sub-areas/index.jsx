@@ -2,8 +2,10 @@
 
 // React Imports
 import { useEffect, useState } from 'react'
-
 import { toast } from 'react-toastify'
+
+// Next Imports
+import { useParams } from 'next/navigation'
 
 // MUI Imports
 import Card from '@mui/material/Card'
@@ -22,9 +24,9 @@ import { useQueryClient } from '@tanstack/react-query'
 import CustomDataTable from '@components/custom-components/CustomDataTable'
 
 // Util Imports
-import { groupService } from '@/services/groupService'
 import { lookupService } from '@/services/lookupService'
-import AddGroupDrawer from './AddGroupDrawer'
+import AddSubAreaDrawer from './AddSubAreaDrawer'
+import { subAreaService } from '@/services/subAreaService'
 
 // Styled Components
 const Icon = styled('i')({})
@@ -32,34 +34,43 @@ const Icon = styled('i')({})
 // Column Definitions
 const columnHelper = createColumnHelper()
 
-const GroupsPage = () => {
+const SubAreasPage = () => {
   // States
-  const [oneGroup, setOneGroup] = useState(null)
-  const [addGroupOpen, setAddGroupOpen] = useState(false)
-  const [brands, setBrands] = useState([])
+  const [oneSubArea, setOneSubArea] = useState(null)
+  const [addSubAreaOpen, setAddSubAreaOpen] = useState(false)
+  const [areas, setAreas] = useState([])
   const [toggledId, setToggledId] = useState(null)
 
   // Hooks
+  const { lang: locale } = useParams()
   const queryClient = useQueryClient()
 
-  // Using `useMutation` to toggle group status
-  const { mutate: toggleStatus, isPending: isTogglingStatus } = groupService.toggleGroupStatus()
+  // Using `useMutation` to toggle sub area status
+  const { mutate: toggleStatus, isPending: isTogglingStatus } = subAreaService.toggleSubAreaStatus()
 
-  // Define columns for the groups table
+  // Define columns for the sub areas table
   const columns = [
-    columnHelper.accessor('groupName', {
-      header: 'Group',
+    columnHelper.accessor('subAreaName', {
+      header: 'Sub Area',
       cell: ({ row }) => (
         <div className='flex items-center gap-4'>
           <div className='flex items-center gap-2'>
-            <Icon className='tabler-stack-2' sx={{ color: 'var(--mui-palette-primary-main)' }} />
+            <Icon className='tabler-map-pin' sx={{ color: 'var(--mui-palette-primary-main)' }} />
             <div className='flex flex-col'>
               <Typography color='text.primary' className='font-medium'>
-                {row.original.groupName || 'N/A'}
+                {row.original.subAreaName || 'N/A'}
               </Typography>
             </div>
           </div>
         </div>
+      )
+    }),
+    columnHelper.accessor('areaDetails.area', {
+      header: 'Area',
+      cell: ({ row }) => (
+        <Typography color='text.primary'>
+          {row.original.areaDetails?.area || row.original.areaId?.area || row.original.area || 'N/A'}
+        </Typography>
       )
     }),
     columnHelper.accessor('createdAt', {
@@ -70,55 +81,25 @@ const GroupsPage = () => {
         </Typography>
       )
     }),
-    columnHelper.accessor('brandId', {
-      header: 'Brand',
-      cell: ({ row }) => {
-        // Get brand name from populated brandId field or fallback to brands array lookup
-        let brandName = 'N/A'
-
-        if (row.original.brandId) {
-          // If brandId is populated (object), get brandName directly
-          if (typeof row.original.brandId === 'object' && row.original.brandId.brandName) {
-            brandName = row.original.brandId.brandName
-          }
-
-          // If brandId is just an ID string, find from brands array
-          else if (typeof row.original.brandId === 'string') {
-            const brand = brands.find(b => b._id === row.original.brandId)
-
-            brandName = brand?.brandName || 'N/A'
-          }
-        }
-
-        return (
-          <div className='flex items-center gap-2'>
-            <Icon className='tabler-building-store' sx={{ color: 'var(--mui-palette-primary-main)' }} />
-            <Typography className='capitalize' color='text.primary'>
-              {brandName}
-            </Typography>
-          </div>
-        )
-      }
-    }),
     columnHelper.accessor('isActive', {
       header: 'Status',
       cell: ({ row }) => {
-        const groupId = row.original._id
-        const isCurrentToggling = isTogglingStatus && toggledId === groupId
+        const subAreaId = row.original.id
+        const isCurrentToggling = isTogglingStatus && toggledId === subAreaId
 
         const handleToggle = () => {
-          setToggledId(groupId)
+          setToggledId(subAreaId)
           toggleStatus(
-            { id: groupId },
+            { id: subAreaId },
             {
               onSuccess: (response) => {
                 const statusText = response.data.result.isActive ? 'activated' : 'deactivated'
-                toast.success(`Group ${statusText} successfully`)
-                queryClient.invalidateQueries(['get-all-groups'])
+                toast.success(`Sub area ${statusText} successfully`)
+                queryClient.invalidateQueries(['get-all-sub-areas'])
               },
               onError: (error) => {
-                console.error('Failed to toggle group status', error)
-                toast.error('Failed to update group status')
+                console.error('Failed to toggle sub area status', error)
+                toast.error('Failed to update sub area status')
               },
               onSettled: () => {
                 setToggledId(null)
@@ -136,7 +117,7 @@ const GroupsPage = () => {
                 checked={row.original.isActive}
                 onChange={handleToggle}
                 disabled={isTogglingStatus}
-                inputProps={{ 'aria-label': 'toggle group status' }}
+                inputProps={{ 'aria-label': 'toggle area status' }}
               />
             )}
           </div>
@@ -149,8 +130,8 @@ const GroupsPage = () => {
         return (
           <div className='flex items-center'>
             <IconButton onClick={() => {
-              setOneGroup(row.original._id)
-              setAddGroupOpen(true)
+              setOneSubArea(row.original.id)
+              setAddSubAreaOpen(true)
             }}>
               <div className='flex'>
                 <i className='tabler-edit text-textSecondary' />
@@ -163,32 +144,43 @@ const GroupsPage = () => {
     })
   ]
 
-  //Api call to get all active brands for filters
-  const { data: brandsData } = lookupService.getBrandsLookup('get-brands-lookup')
+  //Api call to get all areas for lookup
+  const { data: areasData, isLoading: areasLoading = false, error: areasError } = lookupService.getAreasLookup('get-areas-lookup')
 
   useEffect(() => {
-    if (brandsData?.data?.success) {
-      setBrands(brandsData.data.result || [])
+    if (areasData?.data?.success) {
+      setAreas(areasData.data.result || [])
     } else {
-      setBrands([])
+      setAreas([])
     }
-  }, [brandsData])
+  }, [areasData])
 
-  // Transform brands for filter options - ensure brands array is populated
-  const brandOptions = brands.length > 0 ? brands.map(brand => ({
-    value: brand.value,
-    label: brand.label
-  })) : []
+  // Handle lookup errors
+  useEffect(() => {
+    if (areasError) {
+      console.error('Error loading areas for lookup:', areasError)
+      toast.error('Failed to load areas for filters')
+    }
+  }, [areasError])
 
-  // Define filters for the groups table
+  // Define filters for the sub areas table
   const filters = {
     heading: 'Filters',
     filterArray: [
       {
-        label: 'Brand',
-        dbColumn: 'brandId',
-        placeholder: 'Select Brand',
-        options: brandOptions
+        label: 'Area',
+        dbColumn: 'area',
+        placeholder: areasLoading ? 'Loading areas...' : 'Select Area',
+        options: areas.map(area => {
+          if (typeof area === 'string') {
+            return { value: area, label: area };
+          }
+          return {
+            value: area.value || area.label || area,
+            label: area.label || area.value || area
+          };
+        }),
+        disabled: areasLoading
       },
       {
         label: 'Status',
@@ -210,36 +202,36 @@ const GroupsPage = () => {
     // Transform the data to flatten nested fields for better filtering
     return data.map(item => ({
       ...item,
-      id: item._id
+      id: item._id || item.id
     }))
   }
 
   return (
     <>
-      {/* Top Section with Groups heading and Add New Group button */}
+      {/* Top Section with Sub Areas heading and Add New Sub Area button */}
       <Card className='mb-6'>
         <div className='flex justify-between items-center p-6'>
           <Typography variant='h4' component='h1'>
-            Groups
+            Sub Areas
           </Typography>
           <Button
             variant='contained'
             startIcon={<i className='tabler-plus' />}
             onClick={() => {
-              setOneGroup(null)
-              setAddGroupOpen(!addGroupOpen)
+              setOneSubArea(null)
+              setAddSubAreaOpen(!addSubAreaOpen)
             }}
             className='max-sm:is-full'
           >
-            Add New Group
+            Add New Sub Area
           </Button>
         </div>
       </Card>
 
       {/* Custom Data Table */}
       <CustomDataTable
-        apiURL='/groups'
-        queryKey='get-all-groups'
+        apiURL='/subareas'
+        queryKey='get-all-sub-areas'
         columns={columns}
         filters={filters}
         enableSelection={true}
@@ -253,17 +245,17 @@ const GroupsPage = () => {
         }}
       />
 
-      {/* Add Group Drawer */}
-      {addGroupOpen && (
-        <AddGroupDrawer
-          open={addGroupOpen}
-          stateChanger={() => setAddGroupOpen(!addGroupOpen)}
-          oneGroup={oneGroup}
-          setOneGroup={setOneGroup}
+      {/* Add Sub Area Drawer */}
+      {addSubAreaOpen && (
+        <AddSubAreaDrawer
+          open={addSubAreaOpen}
+          stateChanger={() => setAddSubAreaOpen(!addSubAreaOpen)}
+          oneSubArea={oneSubArea}
+          setOneSubArea={setOneSubArea}
         />
       )}
     </>
   )
 }
 
-export default GroupsPage
+export default SubAreasPage

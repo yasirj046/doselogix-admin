@@ -26,13 +26,13 @@ import CustomSelect from '@/components/custom-components/CustomSelect'
 
 // Service Imports
 import { productService } from '@/services/productService'
-import { brandService } from '@/services/brandService'
-import { groupService } from '@/services/groupService'
+import { lookupService } from '@/services/lookupService'
 
 const AddProductDrawer = ({ open, stateChanger, oneProduct, setOneProduct }) => {
   // States
   const [brands, setBrands] = useState([])
   const [groups, setGroups] = useState([])
+  const [subGroups, setSubGroups] = useState([])
 
   // Hooks
   const { lang: locale } = useParams()
@@ -50,6 +50,7 @@ const AddProductDrawer = ({ open, stateChanger, oneProduct, setOneProduct }) => 
       .max(200, 'Product name cannot exceed 200 characters'),
     brandId: Yup.string().required('Brand is required'),
     groupId: Yup.string().required('Group is required'),
+    subGroupId: Yup.string().required('Sub Group is required'),
     packingSize: Yup.string()
       .required('Packing size is required')
       .trim()
@@ -66,6 +67,7 @@ const AddProductDrawer = ({ open, stateChanger, oneProduct, setOneProduct }) => 
       productName: oneProduct?.productName || '',
       brandId: oneProduct?.brandId?._id || oneProduct?.brandId || '',
       groupId: oneProduct?.groupId?._id || oneProduct?.groupId || '',
+      subGroupId: oneProduct?.subGroupId?._id || oneProduct?.subGroupId || '',
       packingSize: oneProduct?.packingSize || '',
       cartonSize: oneProduct?.cartonSize || ''
     },
@@ -111,17 +113,14 @@ const AddProductDrawer = ({ open, stateChanger, oneProduct, setOneProduct }) => 
   })
 
   // API calls for dropdown data
-  const { data: brandsData } = brandService.getAllBrands('get-all-brands')
-  const { data: groupsData } = groupService.getGroupsByBrand('get-groups-by-brand', formik.values.brandId)
+  const { data: brandsData } = lookupService.getBrandsLookup('get-brands-lookup')
+  const { data: groupsData } = lookupService.getGroupsLookup('get-groups-lookup', formik.values.brandId)
+  const { data: subGroupsData } = lookupService.getSubGroupsLookup('get-subgroups-lookup', formik.values.groupId, formik.values.brandId)
 
   // Set brands data
   useEffect(() => {
     if (brandsData?.data?.success) {
-      const brandOptions = (brandsData.data.result?.docs || brandsData.data.result || []).map(brand => ({
-        value: brand._id,
-        label: brand.brandName
-      }))
-      setBrands(brandOptions)
+      setBrands(brandsData.data.result || [])
     } else {
       setBrands([])
     }
@@ -130,26 +129,43 @@ const AddProductDrawer = ({ open, stateChanger, oneProduct, setOneProduct }) => 
   // Set groups data based on selected brand
   useEffect(() => {
     if (groupsData?.data?.success) {
-      const groupOptions = (groupsData.data.result?.docs || groupsData.data.result || []).map(group => ({
-        value: group._id,
-        label: `${group.group}${group.subGroup ? ` - ${group.subGroup}` : ''}`
-      }))
-      setGroups(groupOptions)
+      setGroups(groupsData.data.result || [])
     } else {
       setGroups([])
     }
   }, [groupsData])
 
-  // Clear group selection when brand changes
+  // Set subgroups data based on selected group
+  useEffect(() => {
+    if (subGroupsData?.data?.success) {
+      setSubGroups(subGroupsData.data.result || [])
+    } else {
+      setSubGroups([])
+    }
+  }, [subGroupsData])
+
+  // Clear group and subgroup selection when brand changes
   useEffect(() => {
     if (formik.values.brandId && formik.values.groupId && groups.length > 0) {
       // Check if current group selection is valid for the selected brand
       const isValidGroup = groups.some(group => group.value === formik.values.groupId)
       if (!isValidGroup) {
         formik.setFieldValue('groupId', '')
+        formik.setFieldValue('subGroupId', '')
       }
     }
   }, [formik.values.brandId, groups])
+
+  // Clear subgroup selection when group changes
+  useEffect(() => {
+    if (formik.values.groupId && formik.values.subGroupId && subGroups.length > 0) {
+      // Check if current subgroup selection is valid for the selected group
+      const isValidSubGroup = subGroups.some(subGroup => subGroup.value === formik.values.subGroupId)
+      if (!isValidSubGroup) {
+        formik.setFieldValue('subGroupId', '')
+      }
+    }
+  }, [formik.values.groupId, subGroups])
 
   // Close drawer handler
   const handleClose = () => {
@@ -192,16 +208,29 @@ const AddProductDrawer = ({ open, stateChanger, oneProduct, setOneProduct }) => 
               placeholder='Select Brand'
               options={brands}
               requiredField
+              autoComplete={true}
             />
 
             <CustomSelect
               fullWidth
               name='groupId'
-              label='Group/Category'
+              label='Group'
               placeholder={formik.values.brandId ? 'Select Group' : 'First select a brand'}
               options={groups}
               requiredField
               disabled={!formik.values.brandId}
+              autoComplete={true}
+            />
+
+            <CustomSelect
+              fullWidth
+              name='subGroupId'
+              label='Sub Group'
+              placeholder={formik.values.groupId ? 'Select Sub Group' : 'First select a group'}
+              options={subGroups}
+              requiredField
+              disabled={!formik.values.groupId}
+              autoComplete={true}
             />
 
             <CustomInput

@@ -67,6 +67,17 @@ export const productService = {
       refetchOnWindowFocus: false
     })
   },
+  getProductsBySubGroup: (queryKey, subGroupId) => {
+    return useQuery({
+      queryKey: [queryKey, subGroupId],
+      queryFn: () => {
+        return axios.get(`${API_BASE_URL}${API_URLS.GET_PRODUCTS_BY_SUBGROUP}${subGroupId}`)
+      },
+      enabled: !!subGroupId,
+      retry: false,
+      refetchOnWindowFocus: false
+    })
+  },
   createProduct: () => {
     return useMutation({
       mutationFn: (productData) => {

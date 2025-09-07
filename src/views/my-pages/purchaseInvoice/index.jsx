@@ -34,7 +34,7 @@ import CustomAvatar from '@core/components/mui/Avatar'
 import { getInitials } from '@/utils/getInitials'
 import { getLocalizedUrl } from '@/utils/i18n'
 import { lookupService } from '@/services/lookupService'
-import AddUserDrawer from './AddUserDrawer'
+import AddUserDrawer from './AddPurchaseInvoiceDrawer'
 import { customerService } from '@/services/customerService'
 
 // Styled Components
@@ -123,14 +123,6 @@ const UsersPage = () => {
         )
       }
     }),
-    columnHelper.accessor('createdAt', {
-          header: 'Created Date',
-          cell: ({ row }) => (
-            <Typography color='text.primary'>
-              {row.original.createdAt ? new Date(row.original.createdAt).toLocaleDateString() : 'N/A'}
-            </Typography>
-          )
-        }),
     columnHelper.accessor('customerStatus', {
       header: 'Status',
       cell: ({ row }) => {

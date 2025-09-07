@@ -65,13 +65,57 @@ export const lookupService = {
       refetchOnWindowFocus: false
     })
   },
-  getSubAreasLookup: (queryKey, area) => {
+  getSubAreasLookup: (queryKey, areaId) => {
     return useQuery({
-      queryKey: [queryKey, area],
+      queryKey: [queryKey, areaId],
       queryFn: () => {
-        const url = area
-          ? `${API_BASE_URL}${API_URLS.getSubAreasLookup}?area=${area}`
+        const url = areaId
+          ? `${API_BASE_URL}${API_URLS.getSubAreasLookup}?areaId=${areaId}`
           : `${API_BASE_URL}${API_URLS.getSubAreasLookup}`
+        return axios.get(url)
+      },
+      retry: false,
+      refetchOnWindowFocus: false,
+      enabled: !!areaId
+    })
+  },
+  getBrandsLookup: queryKey => {
+    return useQuery({
+      queryKey: [queryKey],
+      queryFn: () => {
+        return axios.get(`${API_BASE_URL}${API_URLS.getBrandsLookup}`)
+      },
+      retry: false,
+      refetchOnWindowFocus: false
+    })
+  },
+  getGroupsLookup: (queryKey, brandId) => {
+    return useQuery({
+      queryKey: [queryKey, brandId],
+      queryFn: () => {
+        const url = brandId
+          ? `${API_BASE_URL}${API_URLS.getGroupsLookup}?brandId=${brandId}`
+          : `${API_BASE_URL}${API_URLS.getGroupsLookup}`
+        return axios.get(url)
+      },
+      retry: false,
+      refetchOnWindowFocus: false
+    })
+  },
+  getSubGroupsLookup: (queryKey, groupId, brandId) => {
+    return useQuery({
+      queryKey: [queryKey, groupId, brandId],
+      queryFn: () => {
+        let url = `${API_BASE_URL}${API_URLS.getSubGroupsLookup}`
+        const params = []
+
+        if (groupId) params.push(`groupId=${groupId}`)
+        if (brandId) params.push(`brandId=${brandId}`)
+
+        if (params.length > 0) {
+          url += `?${params.join('&')}`
+        }
+
         return axios.get(url)
       },
       retry: false,

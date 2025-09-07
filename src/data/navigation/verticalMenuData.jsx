@@ -1,3 +1,5 @@
+// import { Children } from "react"
+
 const verticalMenuData = dictionary => [
   {
     label: "Customers",
@@ -15,14 +17,36 @@ const verticalMenuData = dictionary => [
     icon: 'tabler-users'
   },
   {
-    label: "Areas",
-    href: '/areas',
-    icon: 'tabler-map-pin'
+    label: "Areas & Sub Areas",
+    icon: 'tabler-map-pin',
+    children: [
+      {
+        label: "Areas",
+        href: '/areas',
+        icon: 'tabler-circle'
+      },
+      {
+        label: "Sub Areas",
+        href: '/sub-areas',
+        icon: 'tabler-circle'
+      }
+    ]
   },
   {
-    label: "Groups",
-    href: '/groups',
-    icon: 'tabler-category'
+    label: "Groups & Sub-Groups",
+    icon: 'tabler-category',
+    children: [
+      {
+        label: "Groups",
+        href: '/groups',
+        icon: 'tabler-category'
+      },
+      {
+        label: "Sub Groups",
+        href: '/sub-groups',
+        icon: 'tabler-category'
+      }
+    ]
   },
   {
     label: "Products",

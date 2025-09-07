@@ -101,6 +101,14 @@ const EmployeesPage = () => {
         </Typography>
       )
     }),
+    columnHelper.accessor('createdAt', {
+          header: 'Created Date',
+          cell: ({ row }) => (
+            <Typography color='text.primary'>
+              {row.original.createdAt ? new Date(row.original.createdAt).toLocaleDateString() : 'N/A'}
+            </Typography>
+          )
+        }),
     columnHelper.accessor('employeeStatus', {
       header: 'Status',
       cell: ({ row }) => {

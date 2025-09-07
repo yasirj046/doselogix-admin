@@ -66,15 +66,5 @@ export const groupService = {
       retry: false,
       refetchOnWindowFocus: false
     })
-  },
-  getAllUniqueGroups: queryKey => {
-    return useQuery({
-      queryKey: [queryKey],
-      queryFn: () => {
-        return axios.get(`${API_BASE_URL}${API_URLS.GET_ALL_UNIQUE_GROUPS}`)
-      },
-      retry: false,
-      refetchOnWindowFocus: false
-    })
   }
 }

@@ -39,7 +39,7 @@ const AreasPage = () => {
   const [oneArea, setOneArea] = useState(null)
   const [addAreaOpen, setAddAreaOpen] = useState(false)
   const [areas, setAreas] = useState([])
-  const [subareas, setSubareas] = useState([])
+  // const [subareas, setSubareas] = useState([])
   const [selectedArea, setSelectedArea] = useState('')
   const [toggledId, setToggledId] = useState(null)
 
@@ -64,17 +64,6 @@ const AreasPage = () => {
               </Typography>
             </div>
           </div>
-        </div>
-      )
-    }),
-    columnHelper.accessor('subArea', {
-      header: 'Sub Area',
-      cell: ({ row }) => (
-        <div className='flex items-center gap-2'>
-          <Icon className='tabler-map-2' sx={{ color: 'var(--mui-palette-secondary-main)' }} />
-          <Typography className='capitalize' color='text.primary'>
-            {row.original.subArea || 'N/A'}
-          </Typography>
         </div>
       )
     }),
@@ -160,17 +149,6 @@ const AreasPage = () => {
     }
   }, [areasData])
 
-  //Api call to get all subareas for lookup (filtered by selected area)
-  const { data: subareasData, isLoading: subareasLoading = false, error: subareasError } = lookupService.getSubAreasLookup('get-subareas-lookup', selectedArea)
-
-  useEffect(() => {
-    if (subareasData?.data?.success) {
-      setSubareas(subareasData.data.result || [])
-    } else {
-      setSubareas([])
-    }
-  }, [subareasData, selectedArea])
-
   // Handle lookup errors
   useEffect(() => {
     if (areasError) {
@@ -179,55 +157,10 @@ const AreasPage = () => {
     }
   }, [areasError])
 
-  useEffect(() => {
-    if (subareasError) {
-      console.error('Error loading subareas for lookup:', subareasError)
-      toast.error('Failed to load subareas for filters')
-    }
-  }, [subareasError])
-
   // Define filters for the areas table
   const filters = {
     heading: 'Filters',
     filterArray: [
-      {
-        label: 'Area',
-        dbColumn: 'area',
-        placeholder: areasLoading ? 'Loading areas...' : 'Select Area',
-        options: areas.map(area => {
-          if (typeof area === 'string') {
-            return { value: area, label: area };
-          }
-          return {
-            value: area.value || area.label || area,
-            label: area.label || area.value || area
-          };
-        }),
-        disabled: areasLoading,
-        onChange: value => {
-          if (value === '') {
-            setSubareas([])
-            setSelectedArea('')
-          } else {
-            setSelectedArea(value)
-          }
-        }
-      },
-      {
-        label: 'Sub Area',
-        dbColumn: 'subArea',
-        placeholder: subareasLoading ? 'Loading subareas...' : 'Select Sub Area',
-        options: subareas.map(subarea => {
-          if (typeof subarea === 'string') {
-            return { value: subarea, label: subarea };
-          }
-          return {
-            value: subarea.value || subarea.label || subarea,
-            label: subarea.label || subarea.value || subarea
-          };
-        }),
-        disabled: subareasLoading
-      },
       {
         label: 'Status',
         dbColumn: 'status',
