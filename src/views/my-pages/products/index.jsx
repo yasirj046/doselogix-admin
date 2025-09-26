@@ -287,7 +287,7 @@ const ProductsPage = () => {
     setToggledId(id)
     toggleStatus(id, {
       onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: ['get-all-products'], exact: false })
+        queryClient.invalidateQueries(['get-all-products'])
         toast.success('Product status updated successfully')
       },
       onError: error => {

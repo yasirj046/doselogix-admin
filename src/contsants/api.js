@@ -112,8 +112,9 @@ export const API_URLS = {
   DELETE_PURCHASE_ENTRY: '/purchase-entries/', // + id
   TOGGLE_PURCHASE_ENTRY_STATUS: '/purchase-entries/', // + id + '/toggle-status'
   GET_PURCHASE_STATS: '/purchase-entries/stats',
-    GET_PURCHASE_ENTRIES_BY_DATE_RANGE: '/purchase-entries/date-range',
-  
+  GET_PURCHASE_ENTRIES_BY_DATE_RANGE: '/purchase-entries/date-range',
+  GET_LAST_INVOICE_BY_BRAND: '/purchase-entries/last-invoice/', // + brandId
+
   //Lookup
   getAllProvinces: '/lookup/provinces',
   getCitiesByProvince: '/lookup/cities',

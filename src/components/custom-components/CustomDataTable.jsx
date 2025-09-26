@@ -43,6 +43,7 @@ import { useSession } from 'next-auth/react'
 
 import TablePaginationComponent from '@components/TablePaginationComponent'
 import CustomTextField from '@core/components/mui/TextField'
+import CustomDatePicker from './CustomDatePicker'
 
 // Style Imports
 import tableStyles from '@core/styles/table.module.css'
@@ -115,10 +116,17 @@ const CustomDataTable = ({
       params.append('keyword', globalFilter)
     }
 
-    // Add filters
+    // Add filters with proper mapping
     Object.entries(filterValues).forEach(([key, value]) => {
       if (value) {
-        params.append(key, value)
+        // Map frontend filter names to backend parameter names
+        let paramName = key;
+        if (key === 'startDate') {
+          paramName = 'startDate';
+        } else if (key === 'endDate') {
+          paramName = 'endDate';
+        }
+        params.append(paramName, value)
       }
     })
 
@@ -353,23 +361,47 @@ const CustomDataTable = ({
             <Grid container spacing={6}>
               {filters.filterArray?.map((filter, index) => (
                 <Grid size={{ xs: 12, sm: 4 }} key={index}>
-                  <CustomTextField
-                    select
-                    fullWidth
-                    id={`select-${filter.dbColumn}`}
-                    value={filterValues[filter.dbColumn] || ''}
-                    onChange={e => handleFilterChange(filter.dbColumn, e.target.value, filter)}
-                    slotProps={{
-                      select: { displayEmpty: true }
-                    }}
-                  >
-                    <MenuItem value=''>{filter.placeholder || `Select ${filter.label}`}</MenuItem>
-                    {filter.options?.map((option, optionIndex) => (
-                      <MenuItem key={optionIndex} value={option.value}>
-                        {option.label}
-                      </MenuItem>
-                    ))}
-                  </CustomTextField>
+                  {filter.type === 'date' ? (
+                    <CustomDatePicker
+                      selected={filterValues[filter.dbColumn] ? new Date(filterValues[filter.dbColumn]) : null}
+                      onChange={date => {
+                        let formattedDate = '';
+                        if (date) {
+                          const year = date.getFullYear();
+                          const month = String(date.getMonth() + 1).padStart(2, '0');
+                          const day = String(date.getDate()).padStart(2, '0');
+                          formattedDate = `${year}-${month}-${day}`;
+                        }
+                        handleFilterChange(filter.dbColumn, formattedDate, filter);
+                      }}
+                      placeholder={filter.placeholder || `Select ${filter.label}`}
+                      label={filter.label}
+                      dateFormat="dd/MM/yyyy"
+                      isClearable
+                      autoComplete="off"
+                    />
+                  ) : (
+                    <CustomTextField
+                      select
+                      fullWidth
+                      id={`select-${filter.dbColumn}`}
+                      value={filterValues[filter.dbColumn] || ''}
+                      onChange={e => handleFilterChange(filter.dbColumn, e.target.value, filter)}
+                      slotProps={{
+                        select: { displayEmpty: true }
+                      }}
+                    >
+                      <MenuItem value=''>{filter.placeholder || `Select ${filter.label}`}</MenuItem>
+                      {filter.options?.map((option, optionIndex) => (
+                        <MenuItem key={optionIndex} value={option.value}>
+                          {option.label}
+                        </MenuItem>
+                      ))}
+                      autocomplete= {false}
+                      dateFormat= "dd/MM/yyyy"
+                      isClearable= {true}
+                    </CustomTextField>
+                  )}
                 </Grid>
               ))}
             </Grid>

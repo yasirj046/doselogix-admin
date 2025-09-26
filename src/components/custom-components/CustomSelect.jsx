@@ -356,11 +356,14 @@ const CustomSelect = forwardRef((props, ref) => {
                 {...rest}
               />
             )}
-            renderOption={(props, option) => (
-              <Box component="li" {...props}>
-                {option.label}
-              </Box>
-            )}
+            renderOption={(props, option) => {
+              const { key, ...rest } = props;
+              return (
+                <Box component="li" key={key} {...rest}>
+                  {option.label}
+                </Box>
+              );
+            }}
             noOptionsText={loading ? "Loading..." : "No options available"}
             filterOptions={(options, { inputValue }) => {
               // Custom filtering is already handled in useEffect

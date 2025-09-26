@@ -283,6 +283,7 @@ const CustomInput = forwardRef((props, ref) => {
     slotProps,
     children,
     format, // Format pattern for masking
+    mask, // Mask character for unfilled positions
     ...rest
   } = props
 
@@ -359,6 +360,7 @@ const CustomInput = forwardRef((props, ref) => {
       {...commonProps}
       customInput={TextFieldStyled}
       format={format}
+      mask={mask}
       value={value !== undefined ? value : fieldProps.value || ''}
       onValueChange={values => {
         const event = {
@@ -369,7 +371,11 @@ const CustomInput = forwardRef((props, ref) => {
         }
         fieldProps.onChange(event)
       }}
-      onBlur={fieldProps.onBlur}
+      onBlur={(e) => {
+        // Ensure field is marked as touched and validation runs
+        formik.setFieldTouched(name, true)
+        fieldProps.onBlur(e)
+      }}
     />
   ) : (
     <TextFieldStyled

@@ -57,18 +57,18 @@ const AddUserDrawer = props => {
   useEffect(() => {
     if (oneUserData) {
       formik.setValues({
-        customerName: oneUserData.customerName || '',
+        customerName: oneUserData.customerName || null,
         customerProvince: oneUserData.customerProvince || '',
         customerCity: oneUserData.customerCity || '',
-        customerAddress: oneUserData.customerAddress || '',
+        customerAddress: oneUserData.customerAddress || null,
         customerCategory: oneUserData.customerCategory || '',
-        customerArea: oneUserData.customerArea?._id || oneUserData.customerArea || '',
+        customerArea: oneUserData.customerArea?._id || oneUserData.customerArea || null,
         customerSubArea: oneUserData.customerSubArea?._id || oneUserData.customerSubArea || '',
-        customerPrimaryContact: oneUserData.customerPrimaryContact || '',
+        customerPrimaryContact: oneUserData.customerPrimaryContact || null,
         customerSecondaryContact: oneUserData.customerSecondaryContact || '',
-        customerCnic: oneUserData.customerCnic || '',
-        customerLicenseNumber: oneUserData.customerLicenseNumber || '',
-        customerLicenseExpiryDate: oneUserData.customerLicenseExpiryDate ? new Date(oneUserData.customerLicenseExpiryDate).toISOString().split('T')[0] : ''
+        customerCnic: oneUserData.customerCnic || null,
+        customerLicenseNumber: oneUserData.customerLicenseNumber || null,
+        customerLicenseExpiryDate: oneUserData.customerLicenseExpiryDate ? new Date(oneUserData.customerLicenseExpiryDate).toISOString().split('T')[0] : null
       })
     }
   }, [oneUserData])
@@ -136,24 +136,27 @@ const AddUserDrawer = props => {
   const schema = Yup.object().shape({
     // Basic customer information
     customerName: Yup.string()
+      .nullable()
       .required('Customer name is required')
       .trim()
       .max(200, 'Customer name cannot exceed 200 characters'),
 
     // Location information
-    customerProvince: Yup.string().required('Customer province is required'),
+    customerProvince: Yup.string(),
 
-    customerCity: Yup.string().required('Customer city is required'),
+    customerCity: Yup.string(),
 
     customerAddress: Yup.string()
+      .nullable()
       .required('Customer address is required')
       .trim()
       .max(500, 'Customer address cannot exceed 500 characters'),
 
     // Business classification
-    customerCategory: Yup.string().required('Customer category is required'),
+    customerCategory: Yup.string(),
 
     customerArea: Yup.string()
+      .nullable()
       .required('Customer area is required')
       .trim()
       .max(100, 'Customer area cannot exceed 100 characters'),
@@ -162,6 +165,7 @@ const AddUserDrawer = props => {
 
     // Contact information
     customerPrimaryContact: Yup.string()
+      .nullable()
       .required('Primary contact is required')
       .trim()
       .max(20, 'Primary contact cannot exceed 20 characters'),
@@ -170,32 +174,40 @@ const AddUserDrawer = props => {
 
     // Legal information
     customerCnic: Yup.string()
+      .nullable()
       .required('Customer CNIC is required')
       .trim(),
 
-    customerLicenseNumber: Yup.string().trim().max(100, 'License number cannot exceed 100 characters'),
+    customerLicenseNumber: Yup.string()
+      .nullable()
+      .required('License number is required')
+      .trim()
+      .max(100, 'License number cannot exceed 100 characters'),
 
     customerLicenseExpiryDate: Yup.date()
       .nullable()
+      .required('License expiry date is required')
       .transform((curr, orig) => (orig === '' ? null : curr))
   })
 
   const formik = useFormik({
     initialValues: {
-      customerName: '',
+      customerName: null,
       customerProvince: '',
       customerCity: '',
-      customerAddress: '',
+      customerAddress: null,
       customerCategory: '',
-      customerArea: '',
+      customerArea: null,
       customerSubArea: '',
-      customerPrimaryContact: '',
+      customerPrimaryContact: null,
       customerSecondaryContact: '',
-      customerCnic: '',
-      customerLicenseNumber: '',
-      customerLicenseExpiryDate: ''
+      customerCnic: null,
+      customerLicenseNumber: null,
+      customerLicenseExpiryDate: null
     },
     validationSchema: schema,
+    validateOnBlur: true,
+    validateOnChange: true,
     onSubmit: values => {
       if (oneUser) {
         updateCustomer({ id: oneUser, customerData: values }, {
@@ -292,7 +304,6 @@ const AddUserDrawer = props => {
               label='Province'
               placeholder='Select Province'
               options={provinces}
-              requiredField
               loading={provincesLoading}
               autoComplete={true}
             />
@@ -302,7 +313,6 @@ const AddUserDrawer = props => {
               label='City'
               placeholder='Select City'
               options={cities}
-              requiredField
               disabled={!formik.values.customerProvince}
               loading={isCitiesLoading}
               autoComplete={true}
@@ -315,7 +325,6 @@ const AddUserDrawer = props => {
               label='Category'
               placeholder='Select Category'
               options={categories}
-              requiredField
               loading={categoriesLoading}
               autoComplete={true}
             />
@@ -343,15 +352,18 @@ const AddUserDrawer = props => {
             <CustomInput
               name='customerPrimaryContact'
               label='Primary Contact'
-              placeholder='Primary Contact'
+              placeholder='03__-_______'
+              format='03##-#######'
+              mask='_'
               requiredField
             />
 
             <CustomInput
               name='customerSecondaryContact'
               label='Secondary Contact'
-              placeholder='Secondary Contact'
-              requiredField
+              placeholder='03__-_______'
+              format='03##-#######'
+              mask='_'
             />
 
             <CustomInput

@@ -9,6 +9,7 @@ import ReactDatePickerComponent from 'react-datepicker'
 
 // Styles
 import 'react-datepicker/dist/react-datepicker.css'
+import padding from 'tailwindcss-logical/plugins/padding'
 
 // Styled Components
 const StyledReactDatePicker = styled(Box)(({ theme }) => {
@@ -267,10 +268,11 @@ const StyledReactDatePicker = styled(Box)(({ theme }) => {
         },
       '& .react-datepicker__header__dropdown': {
         '& .react-datepicker__month-dropdown-container:not(:last-child)': {
-          marginRight: theme.spacing(8)
+          marginRight: theme.spacing(8),
         },
         '& .react-datepicker__month-dropdown-container, & .react-datepicker__year-dropdown-container': {
-          marginBottom: theme.spacing(4)
+          marginBottom: theme.spacing(3)
+
         },
         '& .react-datepicker__month-read-view--selected-month, & .react-datepicker__year-read-view--selected-year': {
           fontSize: '0.875rem',
@@ -286,45 +288,48 @@ const StyledReactDatePicker = styled(Box)(({ theme }) => {
           borderColor: 'var(--mui-palette-text-secondary)'
         },
         '& .react-datepicker__month-dropdown, & .react-datepicker__year-dropdown': {
-          padding: theme.spacing(2),
-          border: 'none',
-          borderRadius: 'var(--mui-shape-borderRadius)',
-          backgroundColor: 'var(--mui-palette-background-paper)',
-          boxShadow: 'var(--mui-customShadows-lg)',
-          '[data-skin="bordered"] &': {
-            boxShadow: 'none',
-            border: `1px solid var(--mui-palette-divider)`
-          }
-        },
+            padding: theme.spacing(3),
+            outline: 'none',
+            border: 'none',
+            borderRadius: 'var(--mui-shape-borderRadius) !important',
+            backgroundColor: 'var(--mui-palette-background-paper)',
+            boxShadow: 'var(--mui-customShadows-md) ',
+            '[data-skin="bordered"] &': {
+              boxShadow: 'none',
+              border: `1px solid var(--mui-palette-divider)`
+            }
+          },
         '& .react-datepicker__month-option, & .react-datepicker__year-option': {
-          ...theme.typography.body1,
-          padding: theme.spacing(1.5, 4),
-          borderRadius: 'var(--mui-shape-borderRadius)',
-          marginBlockEnd: theme.spacing(0.5),
-          '&:hover': {
-            backgroundColor: 'var(--mui-palette-action-hover)'
-          }
-        },
+            ...theme.typography.body1,
+            padding: theme.spacing(1.5, 4),
+            borderRadius: 'var(--mui-shape-borderRadius)',
+            marginBlockEnd: theme.spacing(0.5),
+            outline: 'none',
+            transition: 'background-color 0.2s',
+            '&:hover': {
+              backgroundColor: 'var(--mui-palette-primary-lightOpacity)'
+            }
+          },
         '& .react-datepicker__month-option.react-datepicker__month-option--selected_month': {
-          color: 'var(--mui-palette-primary-main)',
-          backgroundColor: 'var(--mui-palette-primary-lightOpacity)',
-          '&:hover': {
-            backgroundColor: 'var(--mui-palette-primary-lightOpacity)'
+            color: 'var(--mui-palette-primary-main) !important',
+            backgroundColor: 'var(--mui-palette-primary-mainOpacity) !important',
+            '&:hover': {
+              backgroundColor: 'var(--mui-palette-primary-mainOpacity) !important'
+            },
+            '& .react-datepicker__month-option--selected': {
+              display: 'none'
+            },
           },
-          '& .react-datepicker__month-option--selected': {
-            display: 'none'
-          }
-        },
         '& .react-datepicker__year-option.react-datepicker__year-option--selected_year': {
-          color: 'var(--mui-palette-primary-main)',
-          backgroundColor: 'var(--mui-palette-primary-lightOpacity)',
-          '&:hover': {
-            backgroundColor: 'var(--mui-palette-primary-lightOpacity)'
+            color: 'var(--mui-palette-primary-main)',
+            backgroundColor: 'var(--mui-palette-primary-mainOpacity)',
+            '&:hover': {
+              backgroundColor: 'var(--mui-palette-primary-mainOpacity)'
+            },
+            '& .react-datepicker__year-option--selected': {
+              display: 'none'
+            }
           },
-          '& .react-datepicker__year-option--selected': {
-            display: 'none'
-          }
-        },
         '& .react-datepicker__year-option': {
           // TODO: Remove some of the following styles for arrow in Year dropdown when react-datepicker give arrows in Year dropdown
           '& .react-datepicker__navigation--years-upcoming': {
@@ -390,8 +395,14 @@ const StyledReactDatePicker = styled(Box)(({ theme }) => {
         borderTop: 0,
         borderRadius: '1rem',
         margin: theme.spacing(0, 4, 4),
-        color: 'var(--mui-palette-common-white)',
-        backgroundColor: 'var(--mui-palette-primary-main)'
+        color: 'var(--mui-palette-primary-main)',
+        backgroundColor: 'var(--mui-palette-common-white)',
+        '&:hover': {
+          backgroundColor: 'var(--mui-palette-primary-lightOpacity)',
+          cursor: 'pointer'
+        },
+        border: `1px solid var(--mui-palette-primary-main)`,
+        
       },
 
       // Time Picker
@@ -487,7 +498,7 @@ const StyledReactDatePicker = styled(Box)(({ theme }) => {
       }
     },
     '& .react-datepicker__close-icon': {
-      top: 10,
+      top: 1,
       paddingRight: theme.spacing(4),
       ...(theme.direction === 'rtl' ? { right: 0, left: 'auto' } : {}),
       '&:after': {

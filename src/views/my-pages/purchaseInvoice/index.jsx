@@ -89,22 +89,6 @@ const PurchaseInvoicePage = () => {
         </div>
       )
     }),
-    columnHelper.accessor('invoiceDate', {
-      header: 'Invoice Date',
-      cell: ({ row }) => (
-        <Typography color='text.primary'>
-          {row.original.invoiceDate ? new Date(row.original.invoiceDate).toLocaleDateString() : 'N/A'}
-        </Typography>
-      )
-    }),
-    columnHelper.accessor('grossTotal', {
-      header: 'Gross Total',
-      cell: ({ row }) => (
-        <Typography className='font-medium' color='text.primary'>
-          ₨{row.original.grossTotal ? row.original.grossTotal.toLocaleString() : '0'}
-        </Typography>
-      )
-    }),
     columnHelper.accessor('grandTotal', {
       header: 'Grand Total',
       cell: ({ row }) => (
@@ -113,24 +97,29 @@ const PurchaseInvoicePage = () => {
         </Typography>
       )
     }),
-    columnHelper.accessor('cashPaid', {
-      header: 'Paid Amount',
-      cell: ({ row }) => (
-        <Typography color='text.primary'>
-          ₨{row.original.cashPaid ? row.original.cashPaid.toLocaleString() : '0'}
-        </Typography>
-      )
-    }),
-    columnHelper.accessor('creditAmount', {
-      header: 'Credit Amount',
+    columnHelper.accessor('remainingBalance', {
+      header: 'Outstanding Balance',
       cell: ({ row }) => {
-        const creditAmount = row.original.creditAmount || 0
-        const color = creditAmount > 0 ? 'warning' : 'success'
-        
+        // Use the backend's virtual field if available, otherwise calculate
+        let remainingBalance
+        if (row.original.remainingBalance !== undefined) {
+          // Use backend's virtual field
+          remainingBalance = row.original.remainingBalance
+        } else {
+          // Calculate manually
+          const grandTotal = row.original.grandTotal || 0
+          const cashPaid = row.original.cashPaid || 0
+          const paymentDetails = row.original.paymentDetails || []
+          const totalPayments = paymentDetails.reduce((sum, payment) => sum + (payment.amountPaid || 0), 0)
+          remainingBalance = grandTotal - cashPaid - totalPayments
+        }
+
+        const color = remainingBalance > 0 ? 'error' : 'success'
+
         return (
           <Chip
             variant='tonal'
-            label={`₨${creditAmount.toLocaleString()}`}
+            label={`₨${Math.max(0, remainingBalance).toLocaleString()}`}
             size='small'
             color={color}
             className='font-medium'
@@ -141,22 +130,30 @@ const PurchaseInvoicePage = () => {
     columnHelper.accessor('paymentStatus', {
       header: 'Payment Status',
       cell: ({ row }) => {
-        const creditAmount = row.original.creditAmount || 0
-        const grandTotal = row.original.grandTotal || 0
-        const cashPaid = row.original.cashPaid || 0
-        
-        let status = 'Pending'
-        let color = 'warning'
-        
-        if (cashPaid >= grandTotal) {
+        // Calculate remaining balance - prefer backend virtual field
+        let remainingBalance
+        if (row.original.remainingBalance !== undefined) {
+          remainingBalance = row.original.remainingBalance
+        } else {
+          const grandTotal = row.original.grandTotal || 0
+          const cashPaid = row.original.cashPaid || 0
+          const paymentDetails = row.original.paymentDetails || []
+          const totalPayments = paymentDetails.reduce((sum, payment) => sum + (payment.amountPaid || 0), 0)
+          remainingBalance = grandTotal - cashPaid - totalPayments
+        }
+
+        const totalPaid = (row.original.cashPaid || 0) +
+          (row.original.paymentDetails || []).reduce((sum, payment) => sum + (payment.amountPaid || 0), 0)
+
+        let status = 'Unpaid'
+        let color = 'error'
+
+        if (remainingBalance <= 0) {
           status = 'Paid'
           color = 'success'
-        } else if (cashPaid > 0) {
+        } else if (totalPaid > 0) {
           status = 'Partial'
           color = 'info'
-        } else {
-          status = 'Unpaid'
-          color = 'error'
         }
 
         return (
@@ -170,8 +167,8 @@ const PurchaseInvoicePage = () => {
         )
       }
     }),
-    columnHelper.accessor('createdAt', {
-      header: 'Created Date',
+    columnHelper.accessor('Date Created', {
+      header: 'Date Created',
       cell: ({ row }) => (
         <Typography color='text.primary'>
           {row.original.createdAt ? new Date(row.original.createdAt).toLocaleDateString() : 'N/A'}
@@ -227,7 +224,7 @@ const PurchaseInvoicePage = () => {
         return (
           <div className='flex items-center gap-1'>
             <Tooltip title="Edit Purchase Entry">
-              <IconButton 
+              <IconButton
                 size="small"
                 onClick={() => {
                   setOnePurchaseEntry(row.original._id || row.original.id)
@@ -282,8 +279,7 @@ const PurchaseInvoicePage = () => {
         options: [
           { value: 'paid', label: 'Paid' },
           { value: 'partial', label: 'Partial' },
-          { value: 'unpaid', label: 'Unpaid' },
-          { value: 'pending', label: 'Pending' }
+          { value: 'unpaid', label: 'Unpaid' }
         ]
       },
       {
@@ -291,10 +287,22 @@ const PurchaseInvoicePage = () => {
         dbColumn: 'status',
         placeholder: 'Select Status',
         options: [
-          { value: 'active', label: 'Active' },
-          { value: 'inactive', label: 'Inactive' }
+          { value: 'Active', label: 'Active' },
+          { value: 'Inactive', label: 'Inactive' }
         ]
-      }
+      },
+      {
+        label: 'Start Date',
+        dbColumn: 'startDate',
+        placeholder: 'Select Start Date DD/MM/YYYY',
+        type: 'date'
+      },
+      {
+        label: 'End Date',
+        dbColumn: 'endDate',
+        placeholder: 'Select End Date DD/MM/YYYY',
+        type: 'date'
+      },
     ]
   }
 
@@ -307,17 +315,29 @@ const PurchaseInvoicePage = () => {
     return data.map(item => ({
       ...item,
       id: item._id || item.id,
-      
+
       // Calculate payment status for filtering
       paymentStatus: (() => {
-        const creditAmount = item.creditAmount || 0
         const grandTotal = item.grandTotal || 0
         const cashPaid = item.cashPaid || 0
-        
-        if (cashPaid >= grandTotal) return 'paid'
-        if (cashPaid > 0) return 'partial'
-        if (creditAmount > 0) return 'pending'
+        const paymentDetails = item.paymentDetails || []
+        const totalPayments = paymentDetails.reduce((sum, payment) => sum + (payment.amountPaid || 0), 0)
+        const totalPaid = cashPaid + totalPayments
+        const remainingBalance = grandTotal - totalPaid
+
+        if (remainingBalance <= 0) return 'paid'
+        if (totalPaid > 0) return 'partial'
         return 'unpaid'
+      })(),
+
+      // Calculate remaining balance for display
+      remainingBalance: (() => {
+        const grandTotal = item.grandTotal || 0
+        const cashPaid = item.cashPaid || 0
+        const paymentDetails = item.paymentDetails || []
+        const totalPayments = paymentDetails.reduce((sum, payment) => sum + (payment.amountPaid || 0), 0)
+        const remainingBalance = grandTotal - cashPaid - totalPayments
+        return Math.max(0, remainingBalance)
       })(),
 
       // Add status for filtering
@@ -363,10 +383,6 @@ const PurchaseInvoicePage = () => {
         enableSearch={true}
         defaultPageSize={10}
         transformData={transformData}
-        onRowClick={row => {
-          // Handle row click if needed
-          console.log('Row clicked:', row)
-        }}
       />
 
       {/* Add Purchase Entry Drawer */}

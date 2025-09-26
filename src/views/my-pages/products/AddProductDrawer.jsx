@@ -86,6 +86,14 @@ const AddProductDrawer = ({ open, stateChanger, oneProduct, setOneProduct }) => 
         cartonSize: values.cartonSize.trim()
       }
 
+      // Remove empty groupId and subGroupId to avoid ObjectId casting errors
+      if (!payload.groupId || payload.groupId === '') {
+        delete payload.groupId
+      }
+      if (!payload.subGroupId || payload.subGroupId === '') {
+        delete payload.subGroupId
+      }
+
       if (oneProduct) {
         updateProduct(
           { id: oneProduct._id, data: payload },

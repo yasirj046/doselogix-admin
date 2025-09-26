@@ -75,5 +75,30 @@ export const purchaseInvoiceService = {
       retry: false,
       refetchOnWindowFocus: false
     })
+  },
+  addPaymentToCredit: () => {
+    return useMutation({
+      mutationFn: ({ id, paymentData }) => {
+        return axios.post(`${API_BASE_URL}/purchase-entries/${id}/add-payment`, paymentData)
+      }
+    })
+  },
+  removePaymentFromCredit: () => {
+    return useMutation({
+      mutationFn: ({ id, paymentIndex }) => {
+        return axios.delete(`${API_BASE_URL}/purchase-entries/${id}/remove-payment/${paymentIndex}`)
+      }
+    })
+  },
+  getLastInvoiceByBrand: (queryKey, brandId) => {
+    return useQuery({
+      queryKey: [queryKey, brandId],
+      queryFn: () => {
+        return axios.get(`${API_BASE_URL}${API_URLS.GET_LAST_INVOICE_BY_BRAND}${brandId}`)
+      },
+      enabled: !!brandId,
+      retry: false,
+      refetchOnWindowFocus: false
+    })
   }
-} 
+}
