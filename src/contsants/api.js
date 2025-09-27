@@ -126,4 +126,14 @@ export const API_URLS = {
   getBrandsLookup: '/lookup/brands',
   getGroupsLookup: '/lookup/groups',
   getSubGroupsLookup: '/lookup/subgroups',
+
+  //Inventory
+  GET_GROUPED_INVENTORY: '/inventory/grouped',
+  GET_BATCH_DETAILS_BY_PRODUCT: '/inventory/batch-details/', // + productId
+  GET_INVENTORY_SUMMARY: '/inventory/summary',
+  GET_INVENTORY_VALUE: '/inventory/value',
+  GET_LOW_STOCK_ITEMS: '/inventory/low-stock',
+  GET_OUT_OF_STOCK_ITEMS: '/inventory/out-of-stock',
+  GET_EXPIRING_PRODUCTS: '/inventory/expiring',
+  GET_EXPIRED_PRODUCTS: '/inventory/expired',
 }
