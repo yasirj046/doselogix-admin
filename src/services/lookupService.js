@@ -151,5 +151,15 @@ export const lookupService = {
       retry: false,
       refetchOnWindowFocus: false
     })
+  },
+  getExpenseCategoriesLookup: queryKey => {
+    return useQuery({
+      queryKey: [queryKey],
+      queryFn: () => {
+        return axios.get(`${API_BASE_URL}${API_URLS.getExpenseLookup}`)
+      },
+      retry: false,
+      refetchOnWindowFocus: false
+    })
   }
 }

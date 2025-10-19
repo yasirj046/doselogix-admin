@@ -129,6 +129,7 @@ export const API_URLS = {
   getCustomersLookup: '/lookup/customers',
   getEmployeesLookup: '/lookup/employees',
   getProductsLookup: '/lookup/products',
+  getExpenseLookup: '/lookup/expense-categories',
 
   //Sales Invoices
   GET_SALES_INVOICES: '/sales-invoices',
@@ -149,6 +150,19 @@ export const API_URLS = {
   GET_PRICE_HISTORY: '/sales-invoices/price-history', // ?customerId=&productId=
   GET_CUSTOMER_SALES_HISTORY: '/sales-invoices/customer/', // + customerId + '/history'
   GET_EMPLOYEE_SALES_PERFORMANCE: '/sales-invoices/employee/performance',
+
+  //Expenses
+  GET_EXPENSES: '/expenses',
+  CREATE_EXPENSE: '/expenses',
+  GET_EXPENSE_BY_ID: '/expenses/', // + id
+  UPDATE_EXPENSE: '/expenses/', // + id
+  DELETE_EXPENSE: '/expenses/', // + id
+  TOGGLE_EXPENSE_STATUS: '/expenses/', // + id + '/toggle-status'
+  GET_MY_EXPENSES: '/expenses/my/expenses',
+  GET_EXPENSE_STATS: '/expenses/stats',
+  GET_EXPENSES_BY_CATEGORY: '/expenses/category/', // + expenseCategory
+  GET_EXPENSES_BY_DATE_RANGE: '/expenses/date-range',
+  // GET_EXPENSE_CATEGORIES: '/expenses/categories',
 
   //Inventory
   GET_GROUPED_INVENTORY: '/inventory/grouped',

@@ -85,9 +85,6 @@ const AddSalesInvoicePage = () => {
     error: salesInvoiceDetailsError
   } = salesInvoiceService.getSalesInvoiceForEdit('get-sales-invoice-for-edit', invoiceId)
 
-  // Get last invoice data by customer
-  const { data: lastInvoiceData, isFetching: lastInvoiceLoading } = salesInvoiceService.getLastInvoiceByCustomer('get-last-invoice-by-customer', selectedCustomer)
-
   // Get available inventory for selected product
   const { data: inventoryData, isLoading: isLoadingInventory, error: inventoryError } = salesInvoiceService.getAvailableInventory('get-available-inventory', selectedProduct)
 
@@ -323,6 +320,10 @@ const AddSalesInvoicePage = () => {
     }
   })
 
+  
+  // Get last invoice data by customer
+  const { data: lastInvoiceData, isFetching: lastInvoiceLoading } = salesInvoiceService.getLastInvoiceByCustomer('get-last-invoice-by-customer', formik.values.customerId)
+
   // Transform customers data
   useEffect(() => {
     if (customersData?.data?.success) {
@@ -398,33 +399,40 @@ const AddSalesInvoicePage = () => {
     }
   }, [productsData])
 
-    // Get last three prices for customer-product combination
+  // Get last three prices for customer-product combination
   const { data: priceHistoryData, isLoading: isLoadingPriceHistory } = salesInvoiceService.getLastThreePricesForCustomer('get-price-history', formik.values.customerId, productFormik.values.productId)
 
   // Handle customer selection and auto-fill license fields
   useEffect(() => {
-    if (selectedCustomer && customers.length > 0) {
-      const customerData = customers.find(customer => customer.value === selectedCustomer)?.data
+    if (formik.values.customerId && customers.length > 0) {
+      const customerData = customers.find(customer => customer.value === formik.values.customerId)?.data
       if (customerData) {
         setSelectedCustomerData(customerData)
       }
     } else {
       setSelectedCustomerData(null)
     }
-  }, [selectedCustomer, customers])
+  }, [formik.values.customerId, customers])
 
-  // Auto-fill license fields from last invoice data
+  // Auto-fill license fields from last invoice data or customer data
   useEffect(() => {
+    // Don't auto-fill in edit mode - data is already loaded
+    if (isEditMode) return;
+    
     if (lastInvoiceData?.data?.success && lastInvoiceData.data.result) {
       const lastInvoice = lastInvoiceData.data.result
       formik.setFieldValue('licenseNumber', lastInvoice.licenseNumber || '')
       formik.setFieldValue('licenseExpiry', lastInvoice.licenseExpiry ? new Date(lastInvoice.licenseExpiry).toISOString().split('T')[0] : '')
-    } else if (selectedCustomer && !lastInvoiceLoading) {
-      // Clear if no last invoice found
+    } else if (selectedCustomerData && !lastInvoiceLoading) {
+      // If no last invoice, use customer license data
+      formik.setFieldValue('licenseNumber', selectedCustomerData.customerLicenseNumber || '')
+      formik.setFieldValue('licenseExpiry', selectedCustomerData.customerLicenseExpiryDate ? new Date(selectedCustomerData.customerLicenseExpiryDate).toISOString().split('T')[0] : '')
+    } else if (formik.values.customerId && !lastInvoiceLoading) {
+      // Clear if no customer selected or no data available
       formik.setFieldValue('licenseNumber', '')
       formik.setFieldValue('licenseExpiry', '')
     }
-  }, [lastInvoiceData, selectedCustomer, lastInvoiceLoading])
+  }, [lastInvoiceData, formik.values.customerId, selectedCustomerData, lastInvoiceLoading, isEditMode])
 
   // Load sales invoice data if editing
   useEffect(() => {
@@ -459,9 +467,7 @@ const AddSalesInvoicePage = () => {
         paymentDetails: invoiceData.paymentDetails || []
       })
 
-      // Set selected customer for proper lookup data binding
-      const customerIdToSet = invoiceData.customerId?._id || invoiceData.customerId || ''
-      setSelectedCustomer(customerIdToSet)
+      // selectedCustomer state is no longer needed as we use formik.values.customerId directly
 
       // Set customer data for display if available
       if (invoiceData.customerId && typeof invoiceData.customerId === 'object') {
@@ -517,16 +523,7 @@ const AddSalesInvoicePage = () => {
     }
   }, [formik.values.customerId])
 
-  // Debug logging for customer and product selection
-  useEffect(() => {
-    console.log('Debug - selectedCustomer:', selectedCustomer)
-    console.log('Debug - selectedProduct:', selectedProduct)
-    console.log('Debug - formik.values.customerId:', formik.values.customerId)
-    console.log('Debug - productFormik.values.productId:', productFormik.values.productId)
-    console.log('Debug - priceHistoryData:', priceHistoryData)
-    console.log('Debug - isLoadingPriceHistory:', isLoadingPriceHistory)
-    console.log('Debug - priceHistory:', priceHistory)
-  }, [selectedCustomer, selectedProduct, formik.values.customerId, productFormik.values.productId, priceHistoryData, isLoadingPriceHistory, priceHistory])
+
 
   // Handle inventory data when it's loaded
   useEffect(() => {
@@ -693,10 +690,7 @@ const AddSalesInvoicePage = () => {
                         label="Customer"
                         name="customerId"
                         value={formik.values.customerId}
-                        onChange={(e) => {
-                          formik.handleChange(e)
-                          setSelectedCustomer(e.target.value)
-                        }}
+                        onChange={formik.handleChange}
                         onBlur={formik.handleBlur}
                         error={formik.touched.customerId && Boolean(formik.errors.customerId)}
                         helperText={formik.touched.customerId && formik.errors.customerId}
@@ -765,7 +759,7 @@ const AddSalesInvoicePage = () => {
                         requiredField
                       />
                     </Grid>
-                    {/* Non type able fields */}
+                    {/* License Information Fields */}
                     <Grid size={{ xs: 12, sm: 6, lg: 4 }}>
                       <Box className="p-3 border rounded-lg bg-gray-50">
                         <Typography variant="body2" className="text-gray-600 mb-1">
@@ -774,8 +768,8 @@ const AddSalesInvoicePage = () => {
                         <Typography variant="body1" className="font-medium">
                           {lastInvoiceLoading ? (
                             'Loading...'
-                          ) : lastInvoiceData?.data?.success ? (
-                            lastInvoiceData.data.result.licenseNumber || 'No Record'
+                          ) : formik.values.licenseNumber ? (
+                            formik.values.licenseNumber
                           ) : (
                             'No Record'
                           )}
@@ -790,8 +784,8 @@ const AddSalesInvoicePage = () => {
                         <Typography variant="body1" className="font-medium">
                           {lastInvoiceLoading ? (
                             'Loading...'
-                          ) : lastInvoiceData?.data?.success && lastInvoiceData.data.result.licenseExpiry ? (
-                            new Date(lastInvoiceData.data.result.licenseExpiry).toLocaleDateString()
+                          ) : formik.values.licenseExpiry ? (
+                            new Date(formik.values.licenseExpiry).toLocaleDateString()
                           ) : (
                             'No Record'
                           )}
