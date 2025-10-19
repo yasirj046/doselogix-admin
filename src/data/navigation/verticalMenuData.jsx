@@ -65,7 +65,7 @@ const verticalMenuData = dictionary => [
   },
   {
     label: "Sales Invoices",
-    href: '/sales-invoices',
+    href: '/sales-invoice',
     icon: 'tabler-invoice'
   },
   {

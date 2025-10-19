@@ -352,8 +352,8 @@ const AddUserDrawer = props => {
             <CustomInput
               name='customerPrimaryContact'
               label='Primary Contact'
-              placeholder='03__-_______'
-              format='03##-#######'
+              placeholder='____-_______'
+              format='####-#######'
               mask='_'
               requiredField
             />
@@ -361,8 +361,8 @@ const AddUserDrawer = props => {
             <CustomInput
               name='customerSecondaryContact'
               label='Secondary Contact'
-              placeholder='03__-_______'
-              format='03##-#######'
+              placeholder='____-_______'
+              format='####-#######'
               mask='_'
             />
 

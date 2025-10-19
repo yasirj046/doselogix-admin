@@ -50,7 +50,7 @@
     "tailwind.config.js",
     "**/*.js",
     "**/*.jsx"
-  ],
+, "src/views/my-pages/salesInvoice/add-invoice/index.jsx.backup1"  ],
   "exclude": [
     "node_modules"
   ]

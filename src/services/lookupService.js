@@ -121,5 +121,35 @@ export const lookupService = {
       retry: false,
       refetchOnWindowFocus: false
     })
+  },
+  getCustomersLookup: queryKey => {
+    return useQuery({
+      queryKey: [queryKey],
+      queryFn: () => {
+        return axios.get(`${API_BASE_URL}${API_URLS.getCustomersLookup}`)
+      },
+      retry: false,
+      refetchOnWindowFocus: false
+    })
+  },
+  getEmployeesLookup: queryKey => {
+    return useQuery({
+      queryKey: [queryKey],
+      queryFn: () => {
+        return axios.get(`${API_BASE_URL}${API_URLS.getEmployeesLookup}`)
+      },
+      retry: false,
+      refetchOnWindowFocus: false
+    })
+  },
+  getProductsLookup: queryKey => {
+    return useQuery({
+      queryKey: [queryKey],
+      queryFn: () => {
+        return axios.get(`${API_BASE_URL}${API_URLS.getProductsLookup}`)
+      },
+      retry: false,
+      refetchOnWindowFocus: false
+    })
   }
 }

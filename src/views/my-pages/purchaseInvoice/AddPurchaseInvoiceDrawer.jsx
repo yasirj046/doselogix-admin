@@ -725,7 +725,7 @@ const AddPurchaseInvoiceDrawer = props => {
                           />
                         </Grid>
 
-                        <Grid size={{ xs: 12, md: 2.4 }}>
+                        <Grid size={{ xs: 12, md: 2 }}>
                           <CustomInput
                             name='cartons'
                             label='Cartons'
@@ -735,7 +735,7 @@ const AddPurchaseInvoiceDrawer = props => {
                           />
                         </Grid>
 
-                        <Grid size={{ xs: 12, md: 2.4 }}>
+                        <Grid size={{ xs: 12, md: 2 }}>
                           <CustomInput
                             name='pieces'
                             label='Pieces'
@@ -745,7 +745,7 @@ const AddPurchaseInvoiceDrawer = props => {
                           />
                         </Grid>
 
-                        <Grid size={{ xs: 12, md: 2.4 }}>
+                        <Grid size={{ xs: 12, md: 2 }}>
                           <CustomInput
                             name='totalQuantity'
                             label='Total Quantity'
@@ -759,7 +759,7 @@ const AddPurchaseInvoiceDrawer = props => {
                           />
                         </Grid>
 
-                        <Grid size={{ xs: 12, md: 2.4 }}>
+                        <Grid size={{ xs: 12, md: 2 }}>
                           <CustomInput
                             name='bonus'
                             label='Bonus'
@@ -768,7 +768,7 @@ const AddPurchaseInvoiceDrawer = props => {
                           />
                         </Grid>
 
-                        <Grid size={{ xs: 12, md: 2.4 }}>
+                        <Grid size={{ xs: 12, md: 2 }}>
                           <CustomInput
                             name='discount'
                             label='Discount'
@@ -777,7 +777,7 @@ const AddPurchaseInvoiceDrawer = props => {
                           />
                         </Grid>
 
-                        <Grid size={{ xs: 12, md: 2.4 }}>
+                        <Grid size={{ xs: 12, md: 2 }}>
                           <CustomSelect
                             name='discountType'
                             label='Discount Type'
@@ -872,18 +872,18 @@ const AddPurchaseInvoiceDrawer = props => {
                         <tr>
                           <th className='p-3 text-left border-b'>Product</th>
                           <th className='p-3 text-left border-b'>Batch</th>
-                          <th className='p-3 text-left border-b'>Expiry</th>
-                          <th className='p-3 text-right border-b'>Cartons</th>
-                          <th className='p-3 text-right border-b'>Pieces</th>
-                          <th className='p-3 text-right border-b'>Quantity</th>
-                          <th className='p-3 text-right border-b'>Bonus</th>
-                          <th className='p-3 text-right border-b'>Net Price</th>
-                          <th className='p-3 text-right border-b'>Sale Price</th>
-                          <th className='p-3 text-right border-b'>Min Sale</th>
-                          {/* <th className='p-3 text-right border-b'>Retail</th>
-                          <th className='p-3 text-right border-b'>Invoice</th>
-                          <th className='p-3 text-right border-b'>Discount</th> */}
-                          <th className='p-3 text-right border-b'>Total</th>
+                          <th className='p-3 text-center border-b'>Expiry</th>
+                          <th className='p-3 text-center border-b'>Cartons</th>
+                          <th className='p-3 text-center border-b'>Pieces</th>
+                          <th className='p-3 text-center border-b'>Quantity</th>
+                          <th className='p-3 text-center border-b'>Bonus</th>
+                          <th className='p-3 text-center border-b'>Net Price</th>
+                          <th className='p-3 text-center border-b'>Sale Price</th>
+                          <th className='p-3 text-center border-b'>Min Sale</th>
+                          <th className='p-3 text-center border-b'>Retail Price</th>
+                          <th className='p-3 text-center border-b'>Invoice Price</th>
+                          <th className='p-3 text-center border-b'>Discount</th>
+                          <th className='p-3 text-center border-b'>Total</th>
                           <th className='p-3 text-center border-b'>Actions</th>
                         </tr>
                       </thead>
@@ -907,23 +907,30 @@ const AddPurchaseInvoiceDrawer = props => {
                             return (
                               <tr key={index} className='hover:bg-gray-50'>
                                 <td className='p-3 border-b'>{selectedProduct?.productName || 'N/A'}</td>
-                                <td className='p-3 border-b'>{product.batchNumber}</td>
+                                <td className='p-3 border-b'>
+                                  <Chip
+                                    label={product.batchNumber}
+                                    size="small"
+                                    variant="outlined"
+                                    color="primary"
+                                  />
+                                </td>
                                 <td className='p-3 border-b'>{new Date(product.expiryDate).toLocaleDateString()}</td>
-                                <td className='p-3 text-right border-b'>{product.cartons}</td>
-                                <td className='p-3 text-right border-b'>{product.pieces}</td>
-                                <td className='p-3 text-right border-b font-medium text-blue-600'>{totalPieces}</td>
-                                <td className='p-3 text-right border-b'>{product.bonus || 0}</td>
-                                <td className='p-3 text-right border-b'>₨{parseFloat(product.netPrice).toLocaleString()}</td>
-                                <td className='p-3 text-right border-b'>₨{parseFloat(product.salePrice || 0).toLocaleString()}</td>
-                                <td className='p-3 text-right border-b'>₨{parseFloat(product.minSalePrice || 0).toLocaleString()}</td>
-                                <td className='p-3 text-right border-b'>₨{parseFloat(product.retailPrice || 0).toLocaleString()}</td>
-                                <td className='p-3 text-right border-b'>₨{parseFloat(product.invoicePrice || 0).toLocaleString()}</td>
-                                <td className='p-3 text-right border-b'>
+                                <td className='p-3 text-center border-b'>{product.cartons}</td>
+                                <td className='p-3 text-center border-b'>{product.pieces}</td>
+                                <td className='p-3 text-center border-b font-medium text-blue-600'>{totalPieces}</td>
+                                <td className='p-3 text-center border-b'>{product.bonus || 0}</td>
+                                <td className='p-3 text-center border-b'>₨{parseFloat(product.netPrice).toLocaleString()}</td>
+                                <td className='p-3 text-center border-b'>₨{parseFloat(product.salePrice || 0).toLocaleString()}</td>
+                                <td className='p-3 text-center border-b'>₨{parseFloat(product.minSalePrice || 0).toLocaleString()}</td>
+                                <td className='p-3 text-center border-b'>₨{parseFloat(product.retailPrice || 0).toLocaleString()}</td>
+                                <td className='p-3 text-center border-b'>₨{parseFloat(product.invoicePrice || 0).toLocaleString()}</td>
+                                <td className='p-3 text-center border-b'>
                                   {product.discount > 0
                                     ? `${product.discount}${product.discountType === 'percentage' ? '%' : '₨'}`
                                     : '-'}
                                 </td>
-                                <td className='p-3 text-right border-b font-medium'>₨{total.toLocaleString()}</td>
+                                <td className='p-3 text-center border-b font-medium'>₨{total.toLocaleString()}</td>
                                 <td className='p-3 text-center border-b'>
                                   <IconButton
                                     size='small'

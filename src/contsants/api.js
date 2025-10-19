@@ -126,6 +126,29 @@ export const API_URLS = {
   getBrandsLookup: '/lookup/brands',
   getGroupsLookup: '/lookup/groups',
   getSubGroupsLookup: '/lookup/subgroups',
+  getCustomersLookup: '/lookup/customers',
+  getEmployeesLookup: '/lookup/employees',
+  getProductsLookup: '/lookup/products',
+
+  //Sales Invoices
+  GET_SALES_INVOICES: '/sales-invoices',
+  CREATE_SALES_INVOICE: '/sales-invoices',
+  GET_SALES_INVOICE_BY_ID: '/sales-invoices/', // + id
+  UPDATE_SALES_INVOICE: '/sales-invoices/', // + id
+  DELETE_SALES_INVOICE: '/sales-invoices/', // + id
+  TOGGLE_SALES_INVOICE_STATUS: '/sales-invoices/', // + id + '/toggle-status'
+  GET_SALES_STATISTICS: '/sales-invoices/statistics',
+  GET_LAST_INVOICE_BY_CUSTOMER: '/sales-invoices/last-invoice/', // + customerId
+  ADD_SALES_PAYMENT: '/sales-invoices/', // + id + '/add-payment'
+  REMOVE_SALES_PAYMENT: '/sales-invoices/', // + id + '/remove-payment/'
+  GET_SALES_SUMMARY: '/sales-invoices/summary',
+  GET_PRODUCT_SALES_ANALYTICS: '/sales-invoices/analytics/products',
+  GET_LOW_STOCK_ALERTS: '/sales-invoices/alerts/low-stock',
+  GET_CUSTOMER_BALANCE: '/sales-invoices/customer/', // + customerId + '/balance'
+  GET_AVAILABLE_INVENTORY: '/sales-invoices/inventory/', // + productId
+  GET_PRICE_HISTORY: '/sales-invoices/price-history', // ?customerId=&productId=
+  GET_CUSTOMER_SALES_HISTORY: '/sales-invoices/customer/', // + customerId + '/history'
+  GET_EMPLOYEE_SALES_PERFORMANCE: '/sales-invoices/employee/performance',
 
   //Inventory
   GET_GROUPED_INVENTORY: '/inventory/grouped',

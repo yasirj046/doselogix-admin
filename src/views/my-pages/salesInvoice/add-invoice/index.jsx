@@ -48,6 +48,8 @@ const productSchema = Yup.object().shape({
   inventoryId: Yup.string().required('Inventory batch is required'),
   quantity: Yup.number().min(1, 'Quantity must be at least 1').required('Quantity is required'),
   bonus: Yup.number().min(0, 'Bonus must be positive'),
+  totalQuantity: Yup.number().min(1, 'Total quantity must be at least 1'),
+  batchNumber: Yup.string(),
   stock: Yup.number().min(0, 'Stock must be positive'),
   expiryDate: Yup.date(),
   price: Yup.number().min(0, 'Price must be positive').required('Price is required'),
@@ -70,25 +72,18 @@ const AddSalesInvoicePage = () => {
   const [filteredProducts, setFilteredProducts] = useState([])
   const [editingProductIndex, setEditingProductIndex] = useState(null)
   const [selectedProduct, setSelectedProduct] = useState('')
-  const [isAddingPayment, setIsAddingPayment] = useState(false)
-  const [isRemovingPayment, setIsRemovingPayment] = useState(false)
+  const [priceHistory, setPriceHistory] = useState([])
 
   // Hooks
   const queryClient = useQueryClient()
   const isEditMode = !!invoiceId
 
-  // Get sales invoice details if editing
+  // Get sales invoice data if editing
   const {
     data: salesInvoiceDetails,
     isLoading: isLoadingSalesInvoiceDetails,
     error: salesInvoiceDetailsError
-  } = useQuery({
-    queryKey: ['get-sales-invoice-details', invoiceId],
-    queryFn: () => salesInvoiceService.getOneSalesEntryDetails('get-sales-invoice-details', invoiceId).queryFn(),
-    enabled: isEditMode,
-    retry: false,
-    refetchOnWindowFocus: false
-  })
+  } = salesInvoiceService.getSalesInvoiceForEdit('get-sales-invoice-for-edit', invoiceId)
 
   // Get last invoice data by customer
   const { data: lastInvoiceData, isFetching: lastInvoiceLoading } = salesInvoiceService.getLastInvoiceByCustomer('get-last-invoice-by-customer', selectedCustomer)
@@ -97,37 +92,77 @@ const AddSalesInvoicePage = () => {
   const { data: inventoryData, isLoading: isLoadingInventory, error: inventoryError } = salesInvoiceService.getAvailableInventory('get-available-inventory', selectedProduct)
 
   // Create sales invoice mutation
-  const createSalesInvoiceMutation = useMutation({
-    mutationFn: salesInvoiceService.createSalesEntry().mutationFn,
-    onSuccess: data => {
+  const createSalesInvoiceMutation = salesInvoiceService.createSalesEntry()
+
+  // Update sales invoice mutation
+  const updateSalesInvoiceMutation = salesInvoiceService.updateSalesEntry()
+
+  // Add payment to sales invoice mutation
+  const addPaymentMutation = salesInvoiceService.addPaymentToCredit()
+
+  // Remove payment from sales invoice mutation
+  const removePaymentMutation = salesInvoiceService.removePaymentFromSalesInvoice()
+
+  // Set up mutation handlers
+  useEffect(() => {
+    if (createSalesInvoiceMutation.isSuccess) {
       queryClient.invalidateQueries({ queryKey: ['get-all-sales-invoices'] })
       toast.success('Sales invoice created successfully!')
       router.push(getLocalizedUrl('/sales-invoice', params.lang))
-    },
-    onError: error => {
-      console.error('Create sales invoice error:', error)
-      toast.error(error?.response?.data?.message || 'Failed to create sales invoice')
     }
-  })
+    if (createSalesInvoiceMutation.isError) {
+      console.error('Create sales invoice error:', createSalesInvoiceMutation.error)
+      toast.error(createSalesInvoiceMutation.error?.response?.data?.message || 'Failed to create sales invoice')
+    }
+  }, [createSalesInvoiceMutation.isSuccess, createSalesInvoiceMutation.isError, createSalesInvoiceMutation.error, queryClient, router, params.lang])
 
-  // Update sales invoice mutation
-  const updateSalesInvoiceMutation = useMutation({
-    mutationFn: salesInvoiceService.updateSalesEntry().mutationFn,
-    onSuccess: data => {
+  useEffect(() => {
+    if (updateSalesInvoiceMutation.isSuccess) {
       queryClient.invalidateQueries({ queryKey: ['get-all-sales-invoices'] })
       toast.success('Sales invoice updated successfully!')
       router.push(getLocalizedUrl('/sales-invoice', params.lang))
-    },
-    onError: error => {
-      console.error('Update sales invoice error:', error)
-      toast.error(error?.response?.data?.message || 'Failed to update sales invoice')
     }
-  })
+    if (updateSalesInvoiceMutation.isError) {
+      console.error('Update sales invoice error:', updateSalesInvoiceMutation.error)
+      toast.error(updateSalesInvoiceMutation.error?.response?.data?.message || 'Failed to update sales invoice')
+    }
+  }, [updateSalesInvoiceMutation.isSuccess, updateSalesInvoiceMutation.isError, updateSalesInvoiceMutation.error, queryClient, router, params.lang])
+
+  useEffect(() => {
+    if (addPaymentMutation.isSuccess) {
+      queryClient.invalidateQueries({ queryKey: ['get-sales-invoice-for-edit', invoiceId] })
+      toast.success('Payment added successfully!')
+      paymentFormik.resetForm()
+    }
+    if (addPaymentMutation.isError) {
+      console.error('Add payment error:', addPaymentMutation.error)
+      toast.error(addPaymentMutation.error?.response?.data?.message || 'Failed to add payment')
+    }
+  }, [addPaymentMutation.isSuccess, addPaymentMutation.isError, addPaymentMutation.error, queryClient, invoiceId])
+
+  useEffect(() => {
+    if (removePaymentMutation.isSuccess) {
+      queryClient.invalidateQueries({ queryKey: ['get-sales-invoice-for-edit', invoiceId] })
+      toast.success('Payment removed successfully!')
+    }
+    if (removePaymentMutation.isError) {
+      console.error('Remove payment error:', removePaymentMutation.error)
+      toast.error(removePaymentMutation.error?.response?.data?.message || 'Failed to remove payment')
+    }
+  }, [removePaymentMutation.isSuccess, removePaymentMutation.isError, removePaymentMutation.error, queryClient, invoiceId])
 
   // Fetch lookup data using React Query
   const { data: customersData } = lookupService.getCustomersLookup('get-customers-lookup')
   const { data: employeesData } = lookupService.getEmployeesLookup('get-employees-lookup')
   const { data: productsData } = productService.getAllProducts('get-all-products')
+
+  // Force refresh sales invoice data when edit mode is detected
+  useEffect(() => {
+    if (isEditMode && invoiceId) {
+      // Force refetch the specific sales invoice to ensure fresh data
+      queryClient.invalidateQueries({ queryKey: ['get-sales-invoice-for-edit', invoiceId] })
+    }
+  }, [isEditMode, invoiceId, queryClient])
 
   // Main formik for sales invoice
   const formik = useFormik({
@@ -139,7 +174,8 @@ const AddSalesInvoicePage = () => {
       licenseNumber: '',
       licenseExpiry: '',
       deliveryLogNumber: '',
-      cash: 0,
+      totalDiscount: 0,
+      cash: 0, // Add cash field support
       products: [],
       paymentDetails: []
     },
@@ -148,14 +184,36 @@ const AddSalesInvoicePage = () => {
       deliverBy: Yup.string().required('Deliver by is required'),
       bookedBy: Yup.string().required('Booked by is required'),
       date: Yup.date().required('Date is required'),
-      cash: Yup.number().min(0, 'Cash must be positive'),
+      totalDiscount: Yup.number().min(0, 'Total discount must be positive'),
+      cash: Yup.number().min(0, 'Cash amount must be positive'),
       products: Yup.array().min(1, 'At least one product is required')
     }),
     onSubmit: values => {
+      const processedValues = {
+        ...values,
+        totalDiscount: parseFloat(values.totalDiscount) || 0,
+        cash: parseFloat(values.cash) || 0, // Include cash field
+        products: values.products.map(product => {
+          const productInfo = productsData?.data?.result?.find(p => p._id === product.productId)
+          return {
+            productId: product.productId,
+            quantity: parseInt(product.quantity),
+            price: parseFloat(product.price),
+            amount: parseFloat(product.price) * parseInt(product.quantity),
+            inventoryId: product.inventoryId,
+            productName: productInfo?.productName || product.productName || 'Unknown Product',
+            bonus: product.bonus || 0,
+            percentageDiscount: product.percentageDiscount || 0,
+            flatDiscount: product.flatDiscount || 0,
+            lessToMinimumCheck: product.lessToMinimumCheck || false
+          }
+        })
+      }
+
       if (isEditMode) {
-        updateSalesInvoiceMutation.mutate({ id: invoiceId, salesEntryData: values })
+        updateSalesInvoiceMutation.mutate({ id: invoiceId, salesEntryData: processedValues })
       } else {
-        createSalesInvoiceMutation.mutate(values)
+        createSalesInvoiceMutation.mutate(processedValues)
       }
     }
   })
@@ -173,6 +231,8 @@ const AddSalesInvoicePage = () => {
       inventoryId: '',
       quantity: '',
       bonus: 0,
+      totalQuantity: '',
+      batchNumber: '',
       stock: '',
       expiryDate: '',
       price: '',
@@ -212,17 +272,28 @@ const AddSalesInvoicePage = () => {
         }
       }
 
+      // Get batch information to store with the product (reuse the same selectedInventory variable)
+      const batchNumber = selectedInventory?.label || selectedInventory?.data?.batchNumber || 'N/A'
+
+      // Create product object with batch information and convert discount
+      const productWithBatch = {
+        ...values,
+        batchNumber: batchNumber,
+        percentageDiscount: values.discountType === 'percentage' ? values.discount : 0,
+        flatDiscount: values.discountType === 'flat' ? values.discount : 0
+      }
+
       const existingProducts = formik.values.products
 
       if (editingProductIndex !== null) {
         // Update existing product
         const updatedProducts = [...existingProducts]
-        updatedProducts[editingProductIndex] = values
+        updatedProducts[editingProductIndex] = productWithBatch
         formik.setFieldValue('products', updatedProducts)
         setEditingProductIndex(null)
       } else {
         // Add new product
-        formik.setFieldValue('products', [...existingProducts, values])
+        formik.setFieldValue('products', [...existingProducts, productWithBatch])
       }
 
       // Reset product form
@@ -234,19 +305,21 @@ const AddSalesInvoicePage = () => {
   // Payment formik for adding payments
   const paymentFormik = useFormik({
     initialValues: {
-      method: '',
-      reference: '',
+      date: new Date().toISOString().split('T')[0],
       amountPaid: ''
     },
     validationSchema: Yup.object({
-      method: Yup.string().required('Payment method is required'),
+      date: Yup.date().required('Payment date is required'),
       amountPaid: Yup.number().min(1, 'Amount must be greater than 0').required('Amount is required')
     }),
     onSubmit: values => {
-      const existingPayments = formik.values.paymentDetails
-      formik.setFieldValue('paymentDetails', [...existingPayments, values])
-      paymentFormik.resetForm()
-      setIsAddingPayment(false)
+      if (isEditMode) {
+        addPaymentMutation.mutate({ salesInvoiceId: invoiceId, paymentData: values })
+      } else {
+        const existingPayments = formik.values.paymentDetails
+        formik.setFieldValue('paymentDetails', [...existingPayments, values])
+        paymentFormik.resetForm()
+      }
     }
   })
 
@@ -325,6 +398,9 @@ const AddSalesInvoicePage = () => {
     }
   }, [productsData])
 
+    // Get last three prices for customer-product combination
+  const { data: priceHistoryData, isLoading: isLoadingPriceHistory } = salesInvoiceService.getLastThreePricesForCustomer('get-price-history', formik.values.customerId, productFormik.values.productId)
+
   // Handle customer selection and auto-fill license fields
   useEffect(() => {
     if (selectedCustomer && customers.length > 0) {
@@ -352,25 +428,47 @@ const AddSalesInvoicePage = () => {
 
   // Load sales invoice data if editing
   useEffect(() => {
-    if (salesInvoiceDetails?.data?.success && salesInvoiceDetails.data.result) {
+    if (isEditMode && salesInvoiceDetails?.data?.success && salesInvoiceDetails.data.result) {
       const invoiceData = salesInvoiceDetails.data.result
 
+      // Format products data with proper date formatting and handle populated references
+      const formattedProducts = (invoiceData.products || []).map(product => ({
+        ...product,
+        // Handle populated productId reference
+        productId: product.productId?._id || product.productId || '',
+        // Handle populated inventoryId reference
+        inventoryId: product.inventoryId?._id || product.inventoryId || '',
+        // Format expiry date if it exists
+        expiryDate: product.expiryDate ? new Date(product.expiryDate).toISOString().split('T')[0] : ''
+      }))
+
       formik.setValues({
-        customerId: invoiceData.customerId || '',
-        deliverBy: invoiceData.deliverBy || '',
-        bookedBy: invoiceData.bookedBy || '',
+        // Handle populated customerId reference
+        customerId: invoiceData.customerId?._id || invoiceData.customerId || '',
+        // Handle populated deliverBy reference
+        deliverBy: invoiceData.deliverBy?._id || invoiceData.deliverBy || '',
+        // Handle populated bookedBy reference
+        bookedBy: invoiceData.bookedBy?._id || invoiceData.bookedBy || '',
         date: invoiceData.date ? invoiceData.date.split('T')[0] : new Date().toISOString().split('T')[0],
         licenseNumber: invoiceData.licenseNumber || '',
         licenseExpiry: invoiceData.licenseExpiry ? invoiceData.licenseExpiry.split('T')[0] : '',
         deliveryLogNumber: invoiceData.deliveryLogNumber || '',
-        cash: invoiceData.cash || 0,
-        products: invoiceData.products || [],
+        totalDiscount: invoiceData.totalDiscount || 0,
+        cash: invoiceData.cash || 0, // Add cash field support
+        products: formattedProducts,
         paymentDetails: invoiceData.paymentDetails || []
       })
 
-      setSelectedCustomer(invoiceData.customerId || '')
+      // Set selected customer for proper lookup data binding
+      const customerIdToSet = invoiceData.customerId?._id || invoiceData.customerId || ''
+      setSelectedCustomer(customerIdToSet)
+
+      // Set customer data for display if available
+      if (invoiceData.customerId && typeof invoiceData.customerId === 'object') {
+        setSelectedCustomerData(invoiceData.customerId)
+      }
     }
-  }, [salesInvoiceDetails])
+  }, [salesInvoiceDetails, isEditMode])
 
 
 
@@ -381,9 +479,20 @@ const AddSalesInvoicePage = () => {
     }
   }, [productFormik.values.productId])
 
+  // Calculate total quantity when quantity or bonus changes
+  useEffect(() => {
+    const quantity = Number(productFormik.values.quantity) || 0
+    const bonus = Number(productFormik.values.bonus) || 0
+    const calculatedTotal = quantity + bonus
+
+    if (calculatedTotal !== Number(productFormik.values.totalQuantity)) {
+      productFormik.setFieldValue('totalQuantity', calculatedTotal)
+    }
+  }, [productFormik.values.quantity, productFormik.values.bonus])
+
   // Handle product selection changes - reset form when product is unselected
   useEffect(() => {
-    if (!selectedProduct) {
+    if (!productFormik.values.productId) {
       // Reset all product-related fields when no product is selected
       productFormik.setFieldValue('inventoryId', '')
       productFormik.setFieldValue('stock', '')
@@ -391,18 +500,40 @@ const AddSalesInvoicePage = () => {
       productFormik.setFieldValue('price', '')
       productFormik.setFieldValue('quantity', '')
       productFormik.setFieldValue('bonus', 0)
+      productFormik.setFieldValue('totalQuantity', '')
+      productFormik.setFieldValue('batchNumber', '')
       productFormik.setFieldValue('discount', 0)
       productFormik.setFieldValue('discountType', 'percentage')
       productFormik.setFieldValue('lessToMinimumCheck', false)
+      // Also clear price history when no product is selected
+      setPriceHistory([])
     }
-  }, [selectedProduct])
+  }, [productFormik.values.productId])
+
+  // Clear price history when customer changes
+  useEffect(() => {
+    if (!formik.values.customerId) {
+      setPriceHistory([])
+    }
+  }, [formik.values.customerId])
+
+  // Debug logging for customer and product selection
+  useEffect(() => {
+    console.log('Debug - selectedCustomer:', selectedCustomer)
+    console.log('Debug - selectedProduct:', selectedProduct)
+    console.log('Debug - formik.values.customerId:', formik.values.customerId)
+    console.log('Debug - productFormik.values.productId:', productFormik.values.productId)
+    console.log('Debug - priceHistoryData:', priceHistoryData)
+    console.log('Debug - isLoadingPriceHistory:', isLoadingPriceHistory)
+    console.log('Debug - priceHistory:', priceHistory)
+  }, [selectedCustomer, selectedProduct, formik.values.customerId, productFormik.values.productId, priceHistoryData, isLoadingPriceHistory, priceHistory])
 
   // Handle inventory data when it's loaded
   useEffect(() => {
-    if (selectedProduct && inventoryData?.success && inventoryData?.result) {
+    if (selectedProduct && inventoryData?.success && inventoryData?.result && editingProductIndex === null) {
       const transformedInventory = inventoryData.result
 
-      // Auto-select first batch (FEFO - First Expiry First Out) when inventory is loaded
+      // Auto-select first batch (FEFO - First Expiry First Out) when inventory is loaded (only for new products)
       if (transformedInventory.length > 0 && !productFormik.values.inventoryId) {
         const firstBatch = transformedInventory[0]
 
@@ -417,7 +548,7 @@ const AddSalesInvoicePage = () => {
         productFormik.setFieldValue('price', priceToSet)
       }
     }
-  }, [inventoryData, selectedProduct])
+  }, [inventoryData, selectedProduct, editingProductIndex])
 
   // Handle inventory selection
   useEffect(() => {
@@ -431,42 +562,59 @@ const AddSalesInvoicePage = () => {
         productFormik.setFieldValue('stock', inventoryItem.currentQuantity || 0)
         productFormik.setFieldValue('expiryDate', inventoryItem.expiryDate ? new Date(inventoryItem.expiryDate).toISOString().split('T')[0] : '')
 
-        // Auto-populate price from inventory but allow user to change it
-        const priceToSet = inventoryItem.salePrice || inventoryItem.price || 0
-        productFormik.setFieldValue('price', priceToSet)
+        // Only auto-populate price from inventory for new products (not when editing)
+        if (editingProductIndex === null) {
+          const priceToSet = inventoryItem.salePrice || inventoryItem.price || 0
+          productFormik.setFieldValue('price', priceToSet)
+        }
       }
     }
-  }, [productFormik.values.inventoryId, inventoryData])
+  }, [productFormik.values.inventoryId, inventoryData, editingProductIndex])
+
+  // Update price history when data changes
+  useEffect(() => {
+    if (priceHistoryData?.data?.success) {
+      setPriceHistory(priceHistoryData.data.result || [])
+    } else {
+      setPriceHistory([])
+    }
+  }, [priceHistoryData])
 
   // Calculate totals
   const calculateTotals = () => {
     const products = formik.values.products
     const subtotal = products.reduce((sum, product) => {
-      const quantity = Number(product.quantity) || 0
+      const quantity = Number(product.quantity) || 0 // Ordered quantity only
       const price = Number(product.price) || 0
       const discount = Number(product.discount) || 0
       const discountType = product.discountType || 'percentage'
 
-      const lineTotal = quantity * price
+      // Note: totalQuantity (quantity + bonus) is used for inventory deduction on backend
+      // But billing amount is calculated only on ordered quantity (not bonus)
+      const total = quantity * price
 
       // Calculate discount amount based on type
       let discountAmount = 0
       if (discountType === 'percentage') {
-        discountAmount = (lineTotal * discount) / 100
+        discountAmount = (total * discount) / 100
       } else {
         discountAmount = discount
       }
 
-      return sum + (lineTotal - discountAmount)
+      return sum + (total - discountAmount)
     }, 0)
 
+    const totalDiscount = Number(formik.values.totalDiscount) || 0
     const cash = Number(formik.values.cash) || 0
-    const totalPaid = cash + (formik.values.paymentDetails || []).reduce((sum, payment) => sum + (Number(payment.amountPaid) || 0), 0)
-    const remainingBalance = Math.max(0, subtotal - totalPaid)
+    const paymentsTotal = (formik.values.paymentDetails || []).reduce((sum, payment) => sum + (Number(payment.amountPaid) || 0), 0)
+    const totalPaid = cash + paymentsTotal
+    const grandTotal = Math.max(0, subtotal - totalDiscount)
+    const remainingBalance = Math.max(0, grandTotal - totalPaid)
 
     return {
       subtotal,
-      grandTotal: subtotal,
+      totalDiscount,
+      grandTotal,
       totalPaid,
       remainingBalance
     }
@@ -490,8 +638,12 @@ const AddSalesInvoicePage = () => {
 
   // Handle removing payment
   const handleRemovePayment = (index) => {
-    const updatedPayments = formik.values.paymentDetails.filter((_, i) => i !== index)
-    formik.setFieldValue('paymentDetails', updatedPayments)
+    if (isEditMode) {
+      removePaymentMutation.mutate({ salesInvoiceId: invoiceId, paymentIndex: index })
+    } else {
+      const updatedPayments = formik.values.paymentDetails.filter((_, i) => i !== index)
+      formik.setFieldValue('paymentDetails', updatedPayments)
+    }
   }
 
   if (isEditMode && isLoadingSalesInvoiceDetails) {
@@ -527,8 +679,8 @@ const AddSalesInvoicePage = () => {
       <FormikProvider formik={{ ...formik, isLoading: createSalesInvoiceMutation.isPending || updateSalesInvoiceMutation.isPending }}>
         <form onSubmit={formik.handleSubmit}>
           <Grid container spacing={6}>
-            {/* Left Column - Main Form */}
-            <Grid size={{ xs: 12, lg: 12 }}>
+            {/* Main Form */}
+            <Grid size={{ xs: 12 }}>
               {/* Basic Information Card */}
               <Card sx={{ mb: 6 }}>
                 <CardHeader title="Basic Information" />
@@ -761,6 +913,20 @@ const AddSalesInvoicePage = () => {
                           <CustomInput
                             fullWidth
                             type="number"
+                            label="Total Quantity"
+                            name="totalQuantity"
+                            value={productFormik.values.totalQuantity}
+                            onChange={productFormik.handleChange}
+                            onBlur={productFormik.handleBlur}
+                            error={productFormik.touched.totalQuantity && Boolean(productFormik.errors.totalQuantity)}
+                            helperText={productFormik.touched.totalQuantity && productFormik.errors.totalQuantity}
+                            disabled={true}
+                          />
+                        </Grid>
+                        <Grid size={{ xs: 12, sm: 6, md: 4, lg: 2 }}>
+                          <CustomInput
+                            fullWidth
+                            type="number"
                             label="Price"
                             name="price"
                             value={productFormik.values.price}
@@ -773,23 +939,7 @@ const AddSalesInvoicePage = () => {
                             }}
                           />
                         </Grid>
-                        <Grid size={{ xs: 12, sm: 6, md: 4, lg: 2 }}>
-                          <CustomSelect
-                            fullWidth
-                            label="Discount Type"
-                            name="discountType"
-                            value={productFormik.values.discountType}
-                            onChange={productFormik.handleChange}
-                            onBlur={productFormik.handleBlur}
-                            error={productFormik.touched.discountType && Boolean(productFormik.errors.discountType)}
-                            helperText={productFormik.touched.discountType && productFormik.errors.discountType}
-                            options={[
-                              { value: 'percentage', label: 'Percentage (%)' },
-                              { value: 'flat', label: 'Flat Amount (₨)' }
-                            ]}
-                          />
-                        </Grid>
-                        <Grid size={{ xs: 12, sm: 6, md: 4, lg: 2 }}>
+                        <Grid size={{ xs: 12, sm: 6, md: 4, lg: 1.6 }}>
                           <CustomInput
                             fullWidth
                             type="number"
@@ -807,7 +957,58 @@ const AddSalesInvoicePage = () => {
                             }}
                           />
                         </Grid>
-                        <Grid size={{ xs: 12, sm: 6, md: 4, lg: 3 }}>
+                        <Grid size={{ xs: 12, sm: 6, md: 4, lg: 2.4 }}>
+                          <CustomSelect
+                            fullWidth
+                            label="Discount Type"
+                            name="discountType"
+                            value={productFormik.values.discountType}
+                            onChange={productFormik.handleChange}
+                            onBlur={productFormik.handleBlur}
+                            error={productFormik.touched.discountType && Boolean(productFormik.errors.discountType)}
+                            helperText={productFormik.touched.discountType && productFormik.errors.discountType}
+                            options={[
+                              { value: 'percentage', label: 'Percentage (%)' },
+                              { value: 'flat', label: 'Flat Amount (₨)' }
+                            ]}
+                          />
+                        </Grid>
+                        <Grid size={{ xs: 12, md: 8, lg:6 }}>
+                          <Box className="p-3 border rounded-lg bg-gray-50">
+                            <Typography variant="body2" className="text-gray-600 mb-1">
+                              Last 3 Prices to this Customer
+                            </Typography>
+                            <Typography variant="body1" className="font-medium">
+                              {!formik.values.customerId ? (
+                                'Select customer first'
+                              ) : !productFormik.values.productId ? (
+                                'Select product'
+                              ) : isLoadingPriceHistory ? (
+                                'Loading price history...'
+                              ) : priceHistory.length > 0 ? (
+                                <div className="flex gap-2 flex-wrap">
+                                  {priceHistory.map((price, index) => (
+                                    <div key={index} className="text-sm flex justify-between items-center bg-white p-2 rounded border gap-2">
+                                      <span className="font-semibold text-green-600">₨{price.price?.toLocaleString()}</span>
+                                      {/* <Chip
+                                        label={price.batchNumber || 'N/A'}
+                                        size="small"
+                                        variant="outlined"
+                                        color="primary"
+                                      /> */}
+                                      <span className="text-gray-500 text-xs">
+                                        {price.date ? new Date(price.date).toLocaleDateString() : 'N/A'}
+                                      </span>
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                'No previous sales to this customer'
+                              )}
+                            </Typography>
+                          </Box>
+                        </Grid>
+                        <Grid size={{ xs: 12, sm: 6, md: 4, lg: 4 }}>
                           <Box sx={{ display: 'flex', alignItems: 'center', height: '100%', mt: 2 }}>
                             <FormControlLabel
                               control={
@@ -819,7 +1020,7 @@ const AddSalesInvoicePage = () => {
                               }
                               label={
                                 getCurrentMinPrice() > 0
-                                  ? `Allow below min ₨${getCurrentMinPrice()} price`
+                                  ? `Allow below min ₨${getCurrentMinPrice()}`
                                   : "Allow below min price"
                               }
                             />
@@ -828,6 +1029,7 @@ const AddSalesInvoicePage = () => {
                         <Grid size={{ xs: 12 }}>
                           <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end', mt: 4 }}>
                             <Button
+                              type="button"
                               variant="outlined"
                               onClick={() => {
                                 productFormik.resetForm()
@@ -838,10 +1040,14 @@ const AddSalesInvoicePage = () => {
                               Clear Form
                             </Button>
                             <CustomButton
-                              type="submit"
+                              type="button"
                               variant="contained"
                               loading={false}
                               disabled={!productFormik.values.productId || !productFormik.values.inventoryId}
+                              onClick={(e) => {
+                                e.preventDefault()
+                                productFormik.handleSubmit()
+                              }}
                             >
                               {editingProductIndex !== null ? 'Update Product' : 'Add Product'}
                             </CustomButton>
@@ -856,65 +1062,104 @@ const AddSalesInvoicePage = () => {
                   {/* Products List */}
                   {formik.values.products.length > 0 ? (
                     <Box>
-                      <Typography variant="h6" sx={{ mb: 4 }}>Added Products</Typography>
-                      {formik.values.products.map((product, index) => {
-                        const productInfo = products.find(p => p.value === product.productId)
-                        const quantity = Number(product.quantity) || 0
-                        const price = Number(product.price) || 0
-                        const discount = Number(product.discount) || 0
-                        const discountType = product.discountType || 'percentage'
+                      <Typography variant="h6" sx={{ mb: 3 }}>Added Products</Typography>
 
-                        const lineTotal = quantity * price
+                      {/* Products Table */}
+                      <Box sx={{ overflowX: 'auto' }}>
+                        <table className='w-full border-collapse'>
+                          <thead className='sticky top-0 bg-white shadow-sm'>
+                            <tr>
+                              <th className='p-3 text-left border-b font-semibold'>Product Name</th>
+                              <th className='p-3 text-left border-b font-semibold'>Batch No.</th>
+                              <th className='p-3 text-center border-b font-semibold'>Qty</th>
+                              <th className='p-3 text-center border-b font-semibold'>Bonus</th>
+                              <th className='p-3 text-center border-b font-semibold'>Total Qty</th>
+                              <th className='p-3 text-center border-b font-semibold'>Unit Price</th>
+                              <th className='p-3 text-center border-b font-semibold'>Discount</th>
+                              <th className='p-6 text-center border-b font-semibold'>Total</th>
+                              <th className='p-3 text-center border-b font-semibold'>Actions</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {formik.values.products.map((product, index) => {
+                              const productInfo = products.find(p => p.value === product.productId)
+                              const quantity = Number(product.quantity) || 0
+                              const bonus = Number(product.bonus) || 0
+                              const totalQuantity = Number(product.totalQuantity) || 0
+                              const price = Number(product.price) || 0
+                              const discount = Number(product.discount) || 0
+                              const discountType = product.discountType || 'percentage'
 
-                        // Calculate discount amount based on type
-                        let discountAmount = 0
-                        if (discountType === 'percentage') {
-                          discountAmount = (lineTotal * discount) / 100
-                        } else {
-                          discountAmount = discount
-                        }
+                              // Get batch number from stored product data
+                              const batchNumber = product.batchNumber || 'N/A'
 
-                        const finalAmount = lineTotal - discountAmount
+                              // Discount is applied only to ordered quantity (not bonus)
+                              // But inventory deduction should use totalQuantity (quantity + bonus)
+                              const total = quantity * price
 
-                        return (
-                          <Paper key={index} sx={{ p: 4, mb: 4 }}>
-                            <Grid container spacing={2} alignItems="center">
-                              <Grid size={{ xs: 12, md: 4, lg: 3 }}>
-                                <Typography variant="subtitle2" color="text.secondary">Product</Typography>
-                                <Typography>{productInfo?.label || 'Unknown Product'}</Typography>
-                              </Grid>
-                              <Grid size={{ xs: 6, sm: 3, md: 2 }}>
-                                <Typography variant="subtitle2" color="text.secondary">Quantity</Typography>
-                                <Typography>{quantity}</Typography>
-                              </Grid>
-                              <Grid size={{ xs: 6, sm: 3, md: 2 }}>
-                                <Typography variant="subtitle2" color="text.secondary">Price</Typography>
-                                <Typography>₨{price.toLocaleString()}</Typography>
-                              </Grid>
-                              <Grid size={{ xs: 6, sm: 3, md: 2 }}>
-                                <Typography variant="subtitle2" color="text.secondary">Discount</Typography>
-                                <Typography>
-                                  {discount > 0 ? `${discount}${discountType === 'percentage' ? '%' : '₨'}` : 'None'}
-                                </Typography>
-                              </Grid>
-                              <Grid size={{ xs: 6, sm: 3, md: 2, lg: 2 }}>
-                                <Typography variant="subtitle2" color="text.secondary">Amount</Typography>
-                                <Typography fontWeight="bold">₨{finalAmount.toLocaleString()}</Typography>
-                              </Grid>
-                              <Grid size={{ xs: 12, md: 12, lg: 1 }}>
-                                <Box sx={{ display: 'flex', gap: 1, justifyContent: { xs: 'center', md: 'flex-start' } }}>
-                                  <IconButton size="small" onClick={() => handleEditProduct(index)}>
-                                    <i className="tabler-edit text-primary" />
-                                  </IconButton>
-                                  <IconButton size="small" onClick={() => handleRemoveProduct(index)}>
-                                    <i className="tabler-trash text-error" />
-                                  </IconButton>
-                                </Box>
-                              </Grid>
-                            </Grid>
-                          </Paper>
-                        )
-                      })}
+                              // Calculate discount amount based on type
+                              let discountAmount = 0
+                              if (discountType === 'percentage') {
+                                discountAmount = (total * discount) / 100
+                              } else {
+                                discountAmount = discount
+                              }
+
+                              const finalAmount = total - discountAmount
+
+                              return (
+                                <tr key={index} className='hover:bg-gray-50'>
+                                  <td className='p-3 border-b font-medium'>
+                                    {productInfo?.label || 'Unknown Product'}
+                                  </td>
+                                  <td className='p-3 border-b'>
+                                    <Chip
+                                      label={batchNumber}
+                                      size="small"
+                                      variant="outlined"
+                                      color="primary"
+                                    />
+                                  </td>
+                                  <td className='p-3 text-center border-b'>
+                                    {quantity}
+                                  </td>
+                                  <td className='p-3 text-center border-b text-green-600'>
+                                    {bonus}
+                                  </td>
+                                  <td className='p-3 text-center border-b font-bold text-blue-600'>
+                                    {totalQuantity}
+                                  </td>
+                                  <td className='p-6 text-center border-b'>
+                                    ₨{price.toLocaleString()}
+                                  </td>
+                                  <td className='p-6 text-center border-b text-orange-600'>
+                                    {discount > 0 ? `${discount}${discountType === 'percentage' ? '%' : '₨'}` : '-'}
+                                  </td>
+                                  <td className='p-6 text-center border-b font-bold'>
+                                    ₨{finalAmount.toLocaleString()}
+                                  </td>
+                                  <td className='p-3 text-center border-b'>
+                                    <IconButton
+                                      size="small"
+                                      onClick={() => handleEditProduct(index)}
+                                      sx={{ color: 'primary.main', mr: 1 }}
+                                    >
+                                      <i className="tabler-edit" />
+                                    </IconButton>
+                                    <IconButton
+                                      size="small"
+                                      onClick={() => handleRemoveProduct(index)}
+                                      sx={{ color: 'error.main' }}
+                                    >
+                                      <i className="tabler-trash" />
+                                    </IconButton>
+                                  </td>
+                                </tr>
+                              )
+                            })}
+                          </tbody>
+                        </table>
+                      </Box>
                     </Box>
                   ) : (
                     <Box sx={{ textAlign: 'center', py: 8 }}>
@@ -924,200 +1169,203 @@ const AddSalesInvoicePage = () => {
                 </CardContent>
               </Card>
 
-              {/* Payment Details Card */}
-              <Card>
-                <CardHeader
-                  title="Payment Details"
-                  action={
-                    <Button
-                      variant="outlined"
-                      size="small"
-                      onClick={() => setIsAddingPayment(true)}
-                      startIcon={<i className="tabler-plus" />}
-                    >
-                      Add Payment
-                    </Button>
-                  }
-                />
+              {/* Financial Details Card */}
+              <Card sx={{ mb: 6 }}>
+                <CardHeader title="Financial Details" />
                 <CardContent>
-                  {/* Add Payment Form */}
-                  {isAddingPayment && (
-                    <FormikProvider formik={paymentFormik}>
-                      <Box component="form" onSubmit={paymentFormik.handleSubmit} sx={{ mb: 6, p: 4, border: 1, borderRadius: 1 }}>
-                        <Typography variant="h6" sx={{ mb: 4 }}>Add Payment Method</Typography>
-                        <Grid container spacing={4}>
-                          <Grid size={{ xs: 12, md: 4 }}>
-                            <CustomSelect
-                              fullWidth
-                              label="Payment Method"
-                              name="method"
-                              value={paymentFormik.values.method}
-                              onChange={paymentFormik.handleChange}
-                              onBlur={paymentFormik.handleBlur}
-                              error={paymentFormik.touched.method && Boolean(paymentFormik.errors.method)}
-                              helperText={paymentFormik.touched.method && paymentFormik.errors.method}
-                              options={[
-                                { value: 'bank', label: 'Bank Transfer' },
-                                { value: 'cheque', label: 'Cheque' },
-                                { value: 'card', label: 'Card Payment' },
-                                { value: 'other', label: 'Other' }
-                              ]}
-                              placeholder="Select Method"
-                            />
-                          </Grid>
-                          <Grid size={{ xs: 12, md: 4 }}>
-                            <CustomInput
-                              fullWidth
-                              label="Reference/Cheque Number"
-                              name="reference"
-                              value={paymentFormik.values.reference}
-                              onChange={paymentFormik.handleChange}
-                              onBlur={paymentFormik.handleBlur}
-                            />
-                          </Grid>
+                  <Grid container spacing={4}>
+                    <Grid size={{ xs: 12, md: 8 }}>
+                      <Grid container spacing={3}>
+                        <Grid size={{ xs: 12, md: 6 }}>
+                          <CustomInput
+                            name='totalDiscount'
+                            label='Total Discount'
+                            type='number'
+                            placeholder='0'
+                          />
+                        </Grid>
+
+                        <Grid size={{ xs: 12, md: 6 }}>
+                          <CustomInput
+                            name='cash'
+                            label='Cash Paid'
+                            type='number'
+                            placeholder='0'
+                          />
+                        </Grid>
+
+                        {/* Payment Fields - Always show */}
+                        <Grid size={{ xs: 12 }}>
+                          <Typography variant='h6' className='mb-0 mt-1' color='primary'>
+                            Payment Records
+                          </Typography>
+                        </Grid>
+
+                        <FormikProvider formik={paymentFormik}>
                           <Grid size={{ xs: 12, md: 4 }}>
                             <CustomInput
-                              fullWidth
-                              type="number"
-                              label="Amount Paid"
-                              name="amountPaid"
-                              value={paymentFormik.values.amountPaid}
-                              onChange={paymentFormik.handleChange}
-                              onBlur={paymentFormik.handleBlur}
-                              error={paymentFormik.touched.amountPaid && Boolean(paymentFormik.errors.amountPaid)}
-                              helperText={paymentFormik.touched.amountPaid && paymentFormik.errors.amountPaid}
-                              InputProps={{
-                                startAdornment: <InputAdornment position="start">₨</InputAdornment>
-                              }}
+                              name='date'
+                              label='Payment Date'
+                              type='date'
+                              requiredField
                             />
                           </Grid>
+
+                          <Grid size={{ xs: 12, md: 4 }}>
+                            <CustomInput
+                              name='amountPaid'
+                              label='Payment Amount'
+                              type='number'
+                              placeholder='0'
+                              requiredField
+                            />
+                          </Grid>
+
+                          <Grid size={{ xs: 12, md: 4 }} className="flex items-end">
+                            <Button
+                              variant='contained'
+                              color='primary'
+                              onClick={() => paymentFormik.handleSubmit()}
+                              disabled={!paymentFormik.values.amountPaid || paymentFormik.values.amountPaid <= 0 || addPaymentMutation.isPending}
+                              className='mb-0 w-full'
+                              size='medium'
+                              startIcon={<i className='tabler-plus' />}
+                            >
+                              {addPaymentMutation.isPending ? 'Adding Payment...' : 'Add Payment'}
+                            </Button>
+                          </Grid>
+                        </FormikProvider>
+
+                        {/* Payment Records Section */}
+                        {(formik.values.paymentDetails && formik.values.paymentDetails.length > 0) && (
                           <Grid size={{ xs: 12 }}>
-                            <Box sx={{ display: 'flex', gap: 2 }}>
-                              <CustomButton
-                                type="submit"
-                                variant="contained"
-                                loading={false}
-                              >
-                                Add Payment
-                              </CustomButton>
-                              <Button
-                                variant="outlined"
-                                onClick={() => {
-                                  setIsAddingPayment(false)
-                                  paymentFormik.resetForm()
-                                }}
-                              >
-                                Cancel
-                              </Button>
+                            <Box className='mt-2 p-4 bg-gray-50 rounded-lg border'>
+                              <Typography variant='subtitle2' className='mb-3 font-medium text-gray-700'>
+                                Payment History
+                              </Typography>
+                              <div className='space-y-3 max-h-56 overflow-y-auto'>
+                                {(formik.values.paymentDetails || []).map((payment, index) => (
+                                  <div key={index} className='flex justify-between items-center p-3 bg-white rounded-md shadow-sm border border-gray-200'>
+                                    <div className='flex items-center gap-6'>
+                                      <div className='flex items-center gap-2'>
+                                        <i className='tabler-calendar text-gray-500 text-sm' />
+                                        <Typography variant='body2' className='text-gray-600'>
+                                          {payment?.date ? new Date(payment.date).toLocaleDateString() : 'N/A'}
+                                        </Typography>
+                                      </div>
+                                      <div className='flex items-center gap-2'>
+                                        <i className='text-green-600 text-sm' />
+                                        <Typography variant='body2' className='font-semibold text-green-700'>₨
+                                          {(payment?.amountPaid || 0).toLocaleString()}
+                                        </Typography>
+                                      </div>
+                                    </div>
+                                    <IconButton
+                                      size='small'
+                                      color='error'
+                                      onClick={() => handleRemovePayment(index)}
+                                      disabled={removePaymentMutation.isPending}
+                                      className='hover:bg-red-50'
+                                    >
+                                      <i className='tabler-trash text-base' />
+                                    </IconButton>
+                                  </div>
+                                ))}
+                              </div>
                             </Box>
                           </Grid>
-                        </Grid>
-                      </Box>
-                    </FormikProvider>
-                  )}
+                        )}
+                      </Grid>
+                    </Grid>
 
-                  {/* Payment Methods List */}
-                  {formik.values.paymentDetails.length > 0 ? (
-                    <Box>
-                      <Typography variant="h6" sx={{ mb: 4 }}>Payment Methods</Typography>
-                      {formik.values.paymentDetails.map((payment, index) => (
-                        <Paper key={index} sx={{ p: 4, mb: 4 }}>
-                          <Grid container spacing={2} alignItems="center">
-                            <Grid size={{ xs: 12, md: 3 }}>
-                              <Typography variant="subtitle2" color="text.secondary">Method</Typography>
-                              <Chip label={payment.method} size="small" />
-                            </Grid>
-                            <Grid size={{ xs: 12, md: 4 }}>
-                              <Typography variant="subtitle2" color="text.secondary">Reference</Typography>
-                              <Typography>{payment.reference || 'N/A'}</Typography>
-                            </Grid>
-                            <Grid size={{ xs: 12, md: 4 }}>
-                              <Typography variant="subtitle2" color="text.secondary">Amount</Typography>
-                              <Typography fontWeight="bold">₨{Number(payment.amountPaid).toLocaleString()}</Typography>
-                            </Grid>
-                            <Grid size={{ xs: 12, md: 1 }}>
-                              <Box sx={{ display: 'flex', justifyContent: { xs: 'center', md: 'flex-start' } }}>
-                                <IconButton size="small" onClick={() => handleRemovePayment(index)}>
-                                  <i className="tabler-trash text-error" />
-                                </IconButton>
-                              </Box>
-                            </Grid>
-                          </Grid>
-                        </Paper>
-                      ))}
-                    </Box>
-                  ) : (
-                    <Box sx={{ textAlign: 'center', py: 4 }}>
-                      <Typography color="text.secondary">No payment methods added</Typography>
-                    </Box>
-                  )}
-                </CardContent>
-              </Card>
-            </Grid>
+                    <Grid size={{ xs: 12, md: 4 }}>
+                      <Card variant='outlined' className='h-full'>
+                        <CardContent>
+                          <Typography variant='h6' className='mb-4'>Summary</Typography>
 
-            {/* Right Column - Summary */}
-            <Grid size={{ xs: 12, lg: 4 }}>
-              <Card sx={{ position: 'sticky', top: 6 }}>
-                <CardHeader title="Invoice Summary" />
-                <CardContent>
-                  <Box sx={{ '& > *': { mb: 4 } }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <Typography>Subtotal:</Typography>
-                      <Typography fontWeight="bold">₨{totals.subtotal.toLocaleString()}</Typography>
-                    </Box>
-                    <Divider />
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <Typography variant="h6">Grand Total:</Typography>
-                      <Typography variant="h6" fontWeight="bold">₨{totals.grandTotal.toLocaleString()}</Typography>
-                    </Box>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <Typography color="success.main">Cash Paid:</Typography>
-                      <Typography color="success.main">₨{Number(formik.values.cash).toLocaleString()}</Typography>
-                    </Box>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <Typography color="info.main">Other Payments:</Typography>
-                      <Typography color="info.main">₨{(totals.totalPaid - Number(formik.values.cash)).toLocaleString()}</Typography>
-                    </Box>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <Typography fontWeight="bold">Total Paid:</Typography>
-                      <Typography fontWeight="bold">₨{totals.totalPaid.toLocaleString()}</Typography>
-                    </Box>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <Typography
-                        color={totals.remainingBalance > 0 ? "error.main" : "success.main"}
-                      >
-                        Remaining Balance:
-                      </Typography>
-                      <Typography
-                        fontWeight="bold"
-                        color={totals.remainingBalance > 0 ? "error.main" : "success.main"}
-                      >
-                        ₨{totals.remainingBalance.toLocaleString()}
-                      </Typography>
-                    </Box>
+                          <div className='space-y-3'>
+                            <div className='flex justify-between items-center'>
+                              <Typography variant='body2'>Products:</Typography>
+                              <Chip
+                                label={formik.values.products.length}
+                                size='small'
+                                color={formik.values.products.length > 0 ? 'primary' : 'default'}
+                              />
+                            </div>
 
-                    <Divider />
+                            <Divider />
 
-                    {/* Action Buttons */}
-                    <Box sx={{ '& > *': { mb: 2 } }}>
-                      <CustomButton
-                        type="submit"
-                        variant="contained"
-                        fullWidth
-                        loading={createSalesInvoiceMutation.isPending || updateSalesInvoiceMutation.isPending}
-                        disabled={formik.values.products.length === 0}
-                      >
-                        {isEditMode ? 'Update Invoice' : 'Create Invoice'}
-                      </CustomButton>
-                      <Button
-                        variant="outlined"
-                        fullWidth
-                        onClick={() => router.push(getLocalizedUrl('/sales-invoice', params.lang))}
-                      >
-                        Cancel
-                      </Button>
-                    </Box>
-                  </Box>
+                            <div className='flex justify-between items-center'>
+                              <Typography>Gross Total:</Typography>
+                              <Typography className='font-medium'>₨{totals.subtotal.toLocaleString()}</Typography>
+                            </div>
+
+                            <div className='flex justify-between items-center text-sm text-gray-600'>
+                              <Typography>- Total Discount:</Typography>
+                              <Typography>₨{totals.totalDiscount.toLocaleString()}</Typography>
+                            </div>
+
+                            <Divider />
+
+                            <div className='flex justify-between items-center'>
+                              <Typography className='font-medium'>Grand Total:</Typography>
+                              <Typography className='font-semibold text-primary'>₨{totals.grandTotal.toLocaleString()}</Typography>
+                            </div>
+
+            {(formik.values.cash > 0) && (
+              <div className='flex justify-between items-center'>
+                <Typography>Cash Paid:</Typography>
+                <Typography>₨{(formik.values.cash || 0).toLocaleString()}</Typography>
+              </div>
+            )}
+
+            {formik.values.paymentDetails && formik.values.paymentDetails.length > 0 && (
+              <div className='flex justify-between items-center'>
+                <Typography>Additional Payments:</Typography>
+                <Typography>₨{(formik.values.paymentDetails || []).reduce((sum, payment) => sum + (payment.amountPaid || 0), 0).toLocaleString()}</Typography>
+              </div>
+            )}
+
+            <div className='flex justify-between items-center'>
+              <Typography className='font-medium'>Total Paid:</Typography>
+              <Typography className='font-semibold text-success'>
+                ₨{totals.totalPaid.toLocaleString()}
+              </Typography>
+            </div>                            <Divider />
+
+                            <div className='flex justify-between items-center'>
+                              <Typography>Credit Amount:</Typography>
+                              <Typography className={`font-medium ${totals.grandTotal - totals.totalPaid > 0 ? 'text-warning' : 'text-success'}`}>
+                                ₨{(totals.grandTotal - totals.totalPaid).toLocaleString()}
+                              </Typography>
+                            </div>
+                          </div>
+
+                          <Divider sx={{ my: 4 }} />
+
+                          {/* Action Buttons */}
+                          <Box sx={{ '& > *': { mb: 2 } }}>
+                            <CustomButton
+                              type="submit"
+                              variant="contained"
+                              fullWidth
+                              loading={createSalesInvoiceMutation.isPending || updateSalesInvoiceMutation.isPending}
+                              disabled={formik.values.products.length === 0}
+                            >
+                              {isEditMode ? 'Update Invoice' : 'Create Invoice'}
+                            </CustomButton>
+                            <Button
+                              variant="outlined"
+                              fullWidth
+                              onClick={() => router.push(getLocalizedUrl('/sales-invoice', params.lang))}
+                            >
+                              Cancel
+                            </Button>
+                          </Box>
+                        </CardContent>
+                      </Card>
+                    </Grid>
+                  </Grid>
                 </CardContent>
               </Card>
             </Grid>
