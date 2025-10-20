@@ -112,7 +112,6 @@ const CustomButton = forwardRef((props, ref) => {
       className={classNames(className, {
         loading: loading
       })}
-      loading={loading}
       onClick={handleClick}
       type={type}
       startIcon={!loading ? startIcon : undefined}

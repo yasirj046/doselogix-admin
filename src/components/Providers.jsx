@@ -11,6 +11,9 @@ import AppReactToastify from '@/libs/styles/AppReactToastify'
 // Util Imports
 import { getMode, getSettingsFromCookie, getSystemMode } from '@core/utils/serverHelpers'
 
+// Client Component Imports
+import ClientProviders from './ClientProviders'
+
 const Providers = async props => {
   // Props
   const { children, direction } = props
@@ -21,16 +24,18 @@ const Providers = async props => {
   const systemMode = await getSystemMode()
 
   return (
-    <NextAuthProvider basePath={process.env.NEXTAUTH_BASEPATH}>
-      <VerticalNavProvider>
-        <SettingsProvider settingsCookie={settingsCookie} mode={mode}>
-          <ThemeProvider direction={direction} systemMode={systemMode}>
-            <ReduxProvider>{children}</ReduxProvider>
-            <AppReactToastify direction={direction} hideProgressBar />
-          </ThemeProvider>
-        </SettingsProvider>
-      </VerticalNavProvider>
-    </NextAuthProvider>
+    <ClientProviders>
+      <NextAuthProvider basePath={process.env.NEXTAUTH_BASEPATH}>
+        <VerticalNavProvider>
+          <SettingsProvider settingsCookie={settingsCookie} mode={mode}>
+            <ThemeProvider direction={direction} systemMode={systemMode}>
+              <ReduxProvider>{children}</ReduxProvider>
+              <AppReactToastify direction={direction} hideProgressBar />
+            </ThemeProvider>
+          </SettingsProvider>
+        </VerticalNavProvider>
+      </NextAuthProvider>
+    </ClientProviders>
   )
 }
 

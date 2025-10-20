@@ -23,7 +23,7 @@ import '@/app/globals.css'
 
 // Generated Icon CSS Imports
 import '@assets/iconify-icons/generated-icons.css'
-import Providers from './providers'
+import Providers from '@components/Providers'
 
 export const metadata = {
   title: 'DoseLogix - Pharma Inventory & Distribution Management System',

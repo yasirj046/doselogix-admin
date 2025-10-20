@@ -330,6 +330,12 @@ const CustomSelect = forwardRef((props, ref) => {
               }
               return option.label || ''
             }}
+            getOptionKey={(option) => {
+              if (typeof option === 'string') {
+                return option
+              }
+              return option.value || option.label || ''
+            }}
             value={selectedOption}
             inputValue={inputValue}
             onChange={handleAutocompleteChange}
@@ -359,7 +365,7 @@ const CustomSelect = forwardRef((props, ref) => {
             renderOption={(props, option) => {
               const { key, ...rest } = props;
               return (
-                <Box component="li" key={key} {...rest}>
+                <Box component="li" key={option.value} {...rest}>
                   {option.label}
                 </Box>
               );
