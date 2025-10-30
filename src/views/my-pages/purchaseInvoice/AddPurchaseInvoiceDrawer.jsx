@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo, useCallback } from 'react'
 
 // MUI Imports
 import Button from '@mui/material/Button'
@@ -93,6 +93,7 @@ const AddPurchaseInvoiceDrawer = props => {
       creditAmount: 0,
       remarks: '',
       paymentDetails: [],
+
       // New payment fields
       newPaymentDate: new Date().toISOString().split('T')[0],
       newPaymentAmount: 0,
@@ -111,6 +112,7 @@ const AddPurchaseInvoiceDrawer = props => {
       cashPaid: Yup.number().min(0, 'Cash paid must be positive'),
       creditAmount: Yup.number().min(0, 'Credit amount must be positive'),
       remarks: Yup.string().trim(),
+
       // New payment validation
       newPaymentDate: Yup.date(),
       newPaymentAmount: Yup.number().min(0, 'Payment amount must be positive'),
@@ -147,6 +149,7 @@ const AddPurchaseInvoiceDrawer = props => {
 
           // Calculate discount amount
           let discountAmount = 0
+
           if (product.discountType === 'percentage') {
             discountAmount = grossAmount * ((parseFloat(product.discount) || 0) / 100)
           } else {
@@ -180,6 +183,7 @@ const AddPurchaseInvoiceDrawer = props => {
             onSuccess: (response) => {
               if (response.data.success) {
                 toast.success(response.data.message)
+
                 // Invalidate both the main list and the specific purchase entry query
                 queryClient.refetchQueries({ queryKey: ['get-all-purchase-entries'] })
                 queryClient.invalidateQueries({ queryKey: ['get-one-purchase-entry', onePurchaseEntry] })
@@ -242,13 +246,15 @@ const AddPurchaseInvoiceDrawer = props => {
         // Validate that brand is selected
         if (!formik.values.brandId) {
           toast.error('Please select a brand first')
-          return
+          
+return
         }
 
         // Validate product selection
         if (!values.productId) {
           toast.error('Please select a product')
-          return
+          
+return
         }
 
         // Check for duplicate products with same batch number
@@ -261,7 +267,8 @@ const AddPurchaseInvoiceDrawer = props => {
 
         if (existingProductIndex !== -1) {
           toast.error('Product with this batch number already exists')
-          return
+          
+return
         }
 
         const products = [...formik.values.products]
@@ -286,16 +293,18 @@ const AddPurchaseInvoiceDrawer = props => {
     }
   })
 
-  // Payment handling functions
-  const handleAddPayment = () => {
+  // Payment handling functions - optimized with useCallback
+  const handleAddPayment = useCallback(() => {
     if (!formik.values.newPaymentAmount || formik.values.newPaymentAmount <= 0) {
       toast.error('Please enter a valid payment amount')
-      return
+      
+return
     }
 
     if (!formik.values.newPaymentDate) {
       toast.error('Please select a payment date')
-      return
+      
+return
     }
 
     const paymentData = {
@@ -305,6 +314,7 @@ const AddPurchaseInvoiceDrawer = props => {
 
     // Always update local state only - don't save to backend immediately
     const updatedPaymentDetails = [...formik.values.paymentDetails, paymentData]
+
     formik.setFieldValue('paymentDetails', updatedPaymentDetails)
 
     // Reset payment fields
@@ -312,26 +322,29 @@ const AddPurchaseInvoiceDrawer = props => {
     formik.setFieldValue('newPaymentDate', new Date().toISOString().split('T')[0])
 
     toast.success('Payment added successfully')
-  }
+  }, [formik])
 
-  const handleRemovePayment = (index) => {
+  const handleRemovePayment = useCallback((index) => {
     // Always update local state only - don't save to backend immediately
     const updatedPaymentDetails = formik.values.paymentDetails.filter((_, i) => i !== index)
+
     formik.setFieldValue('paymentDetails', updatedPaymentDetails)
     toast.success('Payment removed successfully')
-  }
+  }, [formik])
 
-  // Handler for editing product - Enhanced with better state management
-  const handleEditProduct = (index) => {
+  // Handler for editing product - Optimized with memoized product lookup
+  const handleEditProduct = useCallback((index) => {
     const product = formik.values.products[index]
 
-    // Find the selected product to get additional info
-    const selectedProduct = filteredProducts.find(p => p._id === product.productId)
+    // Use memoized product map for O(1) lookup
+    const selectedProduct = productMap[product.productId]
 
     // Format expiry date for date input (YYYY-MM-DD format)
     let formattedExpiryDate = ''
+
     if (product.expiryDate) {
       const expiryDate = new Date(product.expiryDate)
+
       if (!isNaN(expiryDate.getTime())) {
         formattedExpiryDate = expiryDate.toISOString().split('T')[0]
       }
@@ -350,20 +363,21 @@ const AddPurchaseInvoiceDrawer = props => {
     // Scroll to product form for better UX
     setTimeout(() => {
       const productForm = document.querySelector('.product-form-section')
+
       if (productForm) {
         productForm.scrollIntoView({ behavior: 'smooth', block: 'center' })
       }
     }, 100)
-  }
+  }, [formik.values.products, productMap, productFormik])
 
-  // Handler for canceling product edit
-  const handleCancelProductEdit = () => {
+  // Handler for canceling product edit - optimized with useCallback
+  const handleCancelProductEdit = useCallback(() => {
     productFormik.resetForm()
     setEditingProductIndex(null)
-  }
+  }, [productFormik])
 
-  // Function to close modal - Enhanced with better cleanup
-  function closeModal() {
+  // Function to close modal - Optimized with useCallback
+  const closeModal = useCallback(() => {
     // Reset all form states
     formik.resetForm()
     productFormik.resetForm()
@@ -378,26 +392,40 @@ const AddPurchaseInvoiceDrawer = props => {
 
     // Close the modal
     stateChanger()
-  }
+  }, [formik, productFormik, stateChanger, setOnePurchaseEntry])
 
-  // Function to remove product
-  const removeProduct = (index) => {
+  // Function to remove product - optimized with useCallback
+  const removeProduct = useCallback((index) => {
     const products = formik.values.products.filter((_, i) => i !== index)
+
     formik.setFieldValue('products', products)
     calculateTotals(products)
-  }
+  }, [formik, calculateTotals])
 
-  // Function to calculate totals
-  const calculateTotals = (products = formik.values.products) => {
+  // Memoize product ID to product map for faster lookups
+  const productMap = useMemo(() => {
+    return filteredProducts.reduce((acc, product) => {
+      acc[product._id] = product
+      
+return acc
+    }, {})
+  }, [filteredProducts])
+
+  // Memoize payment details total calculation
+  const totalPaymentDetails = useMemo(() => {
+    return (formik.values.paymentDetails || []).reduce((sum, payment) => sum + (payment.amountPaid || 0), 0)
+  }, [formik.values.paymentDetails])
+
+  // Function to calculate totals - optimized with memoized lookups
+  const calculateTotals = useCallback((products = formik.values.products) => {
     let grossTotal = 0
 
     products.forEach(product => {
-      // Find the selected product from filteredProducts to get cartonSize and packingSize
-      const selectedProduct = filteredProducts.find(p => p._id === product.productId)
+      // Use memoized product map for O(1) lookup instead of O(n) find
+      const selectedProduct = productMap[product.productId]
 
       // Calculate total pieces: (cartons * cartonSize) + pieces
       const totalPieces = ((parseFloat(product.cartons) || 0) * parseFloat(product.cartonSize)) + (parseFloat(product.pieces) || 0)
-
 
       const grossAmount = totalPieces * (parseFloat(product.netPrice) || 0)
       let discountAmount = 0
@@ -409,29 +437,26 @@ const AddPurchaseInvoiceDrawer = props => {
       }
 
       grossTotal += grossAmount - discountAmount
-      console.log("gross amount", grossTotal);
-
-
     })
-
 
     formik.setFieldValue('grossTotal', grossTotal)
 
-
     const grandTotal = grossTotal + (parseFloat(formik.values.freight) || 0) - (parseFloat(formik.values.flatDiscount) || 0) - (parseFloat(formik.values.specialDiscount) || 0)
+
     formik.setFieldValue('grandTotal', Math.round(grandTotal))
 
-    // Calculate total paid: cash paid + sum of all payment details
-    const totalPaymentDetails = (formik.values.paymentDetails || []).reduce((sum, payment) => sum + (payment.amountPaid || 0), 0)
+    // Use memoized payment details total
     const totalPaid = (parseFloat(formik.values.cashPaid) || 0) + totalPaymentDetails
     const creditAmount = Math.round(grandTotal) - totalPaid
+
     formik.setFieldValue('creditAmount', Math.round(creditAmount))
-  }
+  }, [formik, productMap, totalPaymentDetails])
 
   // Effect to populate brands from API response
   useEffect(() => {
     if (brandsData?.data?.success) {
       const brandsList = brandsData.data.result.docs || brandsData.data.result || []
+
       setBrands(brandsList)
     } else {
       setBrands([])
@@ -442,6 +467,7 @@ const AddPurchaseInvoiceDrawer = props => {
   useEffect(() => {
     if (productsData?.data?.success) {
       const productsList = productsData.data.result.docs || productsData.data.result || []
+
       setProducts(productsList)
       setFilteredProducts(productsList)
     } else {
@@ -462,18 +488,18 @@ const AddPurchaseInvoiceDrawer = props => {
     }
   }, [formik.values.brandId, selectedBrand])
 
-  // Effect to recalculate totals when relevant fields change
+  // Effect to recalculate totals when relevant fields change - optimized with useCallback
   useEffect(() => {
     calculateTotals()
-  }, [formik.values.freight, formik.values.flatDiscount, formik.values.specialDiscount, formik.values.cashPaid, formik.values.paymentDetails])
+  }, [formik.values.freight, formik.values.flatDiscount, formik.values.specialDiscount, formik.values.cashPaid, totalPaymentDetails, calculateTotals])
 
-  // Effect to force refresh purchase entry data when modal opens for editing
+  // Effect to refresh purchase entry data when modal opens for editing - optimized to only invalidate on first open
   useEffect(() => {
-    if (open && onePurchaseEntry) {
-      // Force refetch the specific purchase entry to ensure fresh data
+    if (open && onePurchaseEntry && !onePurchaseEntryData) {
+      // Only invalidate if we don't already have the data to avoid unnecessary refetches
       queryClient.invalidateQueries({ queryKey: ['get-one-purchase-entry', onePurchaseEntry] })
     }
-  }, [open, onePurchaseEntry, queryClient])
+  }, [open, onePurchaseEntry, onePurchaseEntryData, queryClient])
 
   // Effect to handle edit mode data loading
   useEffect(() => {
@@ -501,6 +527,7 @@ const AddPurchaseInvoiceDrawer = props => {
         creditAmount: purchaseData.creditAmount || 0,
         remarks: purchaseData.remarks || '',
         paymentDetails: purchaseData.paymentDetails || [],
+
         // Initialize new payment fields
         newPaymentDate: new Date().toISOString().split('T')[0],
         newPaymentAmount: 0,
@@ -516,11 +543,13 @@ const AddPurchaseInvoiceDrawer = props => {
     }
   }, [fetchedOnePurchaseEntryData, onePurchaseEntry])
 
-  // Effect to handle product selection changes
+  // Effect to handle product selection changes - optimized with productMap
   useEffect(() => {
     const productId = productFormik.values.productId
-    if (productId && filteredProducts.length > 0) {
-      const selectedProduct = filteredProducts.find(p => p._id === productId)
+
+    if (productId && Object.keys(productMap).length > 0) {
+      const selectedProduct = productMap[productId]
+
       if (selectedProduct) {
         productFormik.setFieldValue('cartonSize', selectedProduct.cartonSize)
         productFormik.setFieldValue('packingSize', selectedProduct.packingSize)
@@ -531,7 +560,7 @@ const AddPurchaseInvoiceDrawer = props => {
         }
       }
     }
-  }, [productFormik.values.productId, filteredProducts])
+  }, [productFormik.values.productId, productMap])
 
   return (
     <Dialog
@@ -559,6 +588,7 @@ const AddPurchaseInvoiceDrawer = props => {
           <FormikProvider formik={{ ...formik, isLoading: isCreatingPurchaseEntry || isUpdatingPurchaseEntry }}>
             <form className='flex flex-col gap-6' onSubmit={(e) => {
               e.preventDefault()
+
               if (e.key === 'Enter' && !e.shiftKey) {
                 productFormik.handleSubmit()
               }
@@ -754,7 +784,7 @@ const AddPurchaseInvoiceDrawer = props => {
                             disabled
                             value={(
                               (parseFloat(productFormik.values.cartons) || 0) *
-                              parseFloat(filteredProducts.find(p => p._id === productFormik.values.productId)?.cartonSize || 0)
+                              parseFloat(productMap[productFormik.values.productId]?.cartonSize || 0)
                             ) + (parseFloat(productFormik.values.pieces) || 0)}
                           />
                         </Grid>
@@ -896,12 +926,15 @@ const AddPurchaseInvoiceDrawer = props => {
                           </tr>
                         ) : (
                           formik.values.products.map((product, index) => {
-                            const selectedProduct = filteredProducts.find(p => p._id === product.productId)
+                            // Use memoized product map for O(1) lookup
+                            const selectedProduct = productMap[product.productId]
                             const totalPieces = ((parseFloat(product.cartons) || 0) * parseFloat(selectedProduct?.cartonSize || 0)) + (parseFloat(product.pieces) || 0)
                             const grossAmount = totalPieces * (parseFloat(product.netPrice) || 0)
+
                             const discountAmount = product.discountType === 'percentage'
                               ? grossAmount * ((parseFloat(product.discount) || 0) / 100)
                               : parseFloat(product.discount) || 0
+
                             const total = grossAmount - discountAmount
 
                             return (
