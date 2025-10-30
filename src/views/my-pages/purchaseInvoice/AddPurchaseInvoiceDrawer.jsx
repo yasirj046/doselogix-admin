@@ -246,15 +246,15 @@ const AddPurchaseInvoiceDrawer = props => {
         // Validate that brand is selected
         if (!formik.values.brandId) {
           toast.error('Please select a brand first')
-          
-return
+
+          return
         }
 
         // Validate product selection
         if (!values.productId) {
           toast.error('Please select a product')
-          
-return
+
+          return
         }
 
         // Check for duplicate products with same batch number
@@ -267,8 +267,8 @@ return
 
         if (existingProductIndex !== -1) {
           toast.error('Product with this batch number already exists')
-          
-return
+
+          return
         }
 
         const products = [...formik.values.products]
@@ -297,14 +297,14 @@ return
   const handleAddPayment = useCallback(() => {
     if (!formik.values.newPaymentAmount || formik.values.newPaymentAmount <= 0) {
       toast.error('Please enter a valid payment amount')
-      
-return
+
+      return
     }
 
     if (!formik.values.newPaymentDate) {
       toast.error('Please select a payment date')
-      
-return
+
+      return
     }
 
     const paymentData = {
@@ -406,8 +406,8 @@ return
   const productMap = useMemo(() => {
     return filteredProducts.reduce((acc, product) => {
       acc[product._id] = product
-      
-return acc
+
+      return acc
     }, {})
   }, [filteredProducts])
 
