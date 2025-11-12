@@ -38,6 +38,7 @@ import FormikProvider from '@/contexts/formikContext'
 import { salesInvoiceService } from '@/services/salesInvoiceService'
 import { lookupService } from '@/services/lookupService'
 import { productService } from '@/services/productService'
+import { deliveryLogService } from '@/services/deliveryLogService'
 
 // Util Imports
 import { getLocalizedUrl } from '@/utils/i18n'
@@ -55,7 +56,9 @@ const productSchema = Yup.object().shape({
   price: Yup.number().min(0, 'Price must be positive').required('Price is required'),
   discount: Yup.number().min(0, 'Discount must be positive'),
   discountType: Yup.string().oneOf(['percentage', 'flat'], 'Invalid discount type'),
-  lessToMinimumCheck: Yup.boolean()
+  lessToMinimumCheck: Yup.boolean(),
+  returnQuantity: Yup.number().min(0, 'Return quantity must be positive'),
+  returnDate: Yup.date().nullable()
 })
 
 const AddSalesInvoicePage = () => {
@@ -71,8 +74,9 @@ const AddSalesInvoicePage = () => {
   const [selectedCustomerData, setSelectedCustomerData] = useState(null)
   const [filteredProducts, setFilteredProducts] = useState([])
   const [editingProductIndex, setEditingProductIndex] = useState(null)
-  const [selectedProduct, setSelectedProduct] = useState('')
   const [priceHistory, setPriceHistory] = useState([])
+  const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString())
+  const [isReturnMode, setIsReturnMode] = useState(false)
 
   // Hooks
   const queryClient = useQueryClient()
@@ -85,8 +89,13 @@ const AddSalesInvoicePage = () => {
     error: salesInvoiceDetailsError
   } = salesInvoiceService.getSalesInvoiceForEdit('get-sales-invoice-for-edit', invoiceId)
 
-  // Get available inventory for selected product
-  const { data: inventoryData, isLoading: isLoadingInventory, error: inventoryError } = salesInvoiceService.getAvailableInventory('get-available-inventory', selectedProduct)
+  // Get next invoice number (only for new invoices, not when editing)
+  const { data: nextInvoiceNumberData, isLoading: isLoadingInvoiceNumber, refetch: refetchInvoiceNumber } = salesInvoiceService.getNextInvoiceNumber(
+    'get-next-invoice-number',
+    !isEditMode ? invoiceDate : null
+  )
+
+
 
   // Create sales invoice mutation
   const createSalesInvoiceMutation = salesInvoiceService.createSalesEntry()
@@ -168,6 +177,7 @@ const AddSalesInvoicePage = () => {
       deliverBy: '',
       bookedBy: '',
       date: new Date().toISOString().split('T')[0],
+      salesInvoiceNumber: '',
       licenseNumber: '',
       licenseExpiry: '',
       deliveryLogNumber: '',
@@ -181,6 +191,7 @@ const AddSalesInvoicePage = () => {
       deliverBy: Yup.string().required('Deliver by is required'),
       bookedBy: Yup.string().required('Booked by is required'),
       date: Yup.date().required('Date is required'),
+      salesInvoiceNumber: Yup.string().matches(/^SINV-\d{2}-\d{4}-\d{6}$/, 'Invalid sales invoice number format'),
       totalDiscount: Yup.number().min(0, 'Total discount must be positive'),
       cash: Yup.number().min(0, 'Cash amount must be positive'),
       products: Yup.array().min(1, 'At least one product is required')
@@ -192,7 +203,9 @@ const AddSalesInvoicePage = () => {
         cash: parseFloat(values.cash) || 0, // Include cash field
         products: values.products.map(product => {
           const productInfo = productsData?.data?.result?.find(p => p._id === product.productId)
-          return {
+
+          // Base product data
+          const baseProductData = {
             productId: product.productId,
             quantity: parseInt(product.quantity),
             price: parseFloat(product.price),
@@ -202,8 +215,12 @@ const AddSalesInvoicePage = () => {
             bonus: product.bonus || 0,
             percentageDiscount: product.percentageDiscount || 0,
             flatDiscount: product.flatDiscount || 0,
-            lessToMinimumCheck: product.lessToMinimumCheck || false
+            lessToMinimumCheck: product.lessToMinimumCheck || false,
+            returnQuantity: parseInt(product.returnQuantity) || 0,
+            returnDate: product.returnDate || null
           }
+
+          return baseProductData
         })
       }
 
@@ -215,11 +232,14 @@ const AddSalesInvoicePage = () => {
     }
   })
 
-  // Get current minimum price for validation
-  const getCurrentMinPrice = () => {
-    const selectedInventory = inventoryData?.result?.find(inv => inv.value === productFormik.values.inventoryId)
-    return selectedInventory?.data?.minSalePrice ? Number(selectedInventory.data.minSalePrice) : 0
-  }
+  // Get delivery log number preview when employee is selected
+  const { data: deliveryLogNumberData, isLoading: isLoadingDeliveryLogNumber } = deliveryLogService.getDeliveryLogNumber(
+    'get-delivery-log-preview-number',
+    formik.values.deliverBy,
+    formik.values.date
+  )
+
+
 
   // Product formik for adding/editing products
   const productFormik = useFormik({
@@ -235,7 +255,9 @@ const AddSalesInvoicePage = () => {
       price: '',
       discount: 0,
       discountType: 'percentage',
-      lessToMinimumCheck: false
+      lessToMinimumCheck: false,
+      returnQuantity: 0,
+      returnDate: ''
     },
     validationSchema: productSchema,
     validate: values => {
@@ -299,6 +321,18 @@ const AddSalesInvoicePage = () => {
     }
   })
 
+  // Get available inventory for selected product (moved after productFormik to avoid referencing before initialization)
+  const { data: inventoryData, isLoading: isLoadingInventory, error: inventoryError } = salesInvoiceService.getAvailableInventory(
+    'get-available-inventory',
+    productFormik.values.productId
+  )
+
+  // Get current minimum price for validation (uses productFormik and inventoryData)
+  const getCurrentMinPrice = () => {
+    const selectedInventory = inventoryData?.result?.find(inv => inv.value === productFormik.values.inventoryId)
+    return selectedInventory?.data?.minSalePrice ? Number(selectedInventory.data.minSalePrice) : 0
+  }
+
   // Payment formik for adding payments
   const paymentFormik = useFormik({
     initialValues: {
@@ -307,7 +341,8 @@ const AddSalesInvoicePage = () => {
     },
     validationSchema: Yup.object({
       date: Yup.date().required('Payment date is required'),
-      amountPaid: Yup.number().min(1, 'Amount must be greater than 0').required('Amount is required')
+      // Allow negative payment amounts as well (returns/refunds). Require a number.
+      amountPaid: Yup.number().required('Amount is required')
     }),
     onSubmit: values => {
       if (isEditMode) {
@@ -320,7 +355,7 @@ const AddSalesInvoicePage = () => {
     }
   })
 
-  
+
   // Get last invoice data by customer
   const { data: lastInvoiceData, isFetching: lastInvoiceLoading } = salesInvoiceService.getLastInvoiceByCustomer('get-last-invoice-by-customer', formik.values.customerId)
 
@@ -402,6 +437,40 @@ const AddSalesInvoicePage = () => {
   // Get last three prices for customer-product combination
   const { data: priceHistoryData, isLoading: isLoadingPriceHistory } = salesInvoiceService.getLastThreePricesForCustomer('get-price-history', formik.values.customerId, productFormik.values.productId)
 
+  // Auto-fill next invoice number when creating new invoice
+  useEffect(() => {
+    if (!isEditMode && nextInvoiceNumberData?.data?.success && nextInvoiceNumberData.data.result) {
+      const invoiceNumber = nextInvoiceNumberData.data.result.salesInvoiceNumber
+      formik.setFieldValue('salesInvoiceNumber', invoiceNumber)
+    }
+  }, [nextInvoiceNumberData, isEditMode])
+
+  // Refetch invoice number when date changes (in create mode only)
+  useEffect(() => {
+    if (!isEditMode && formik.values.date) {
+      const newDate = new Date(formik.values.date).toISOString()
+      setInvoiceDate(newDate)
+      // Invalidate and refetch
+      queryClient.invalidateQueries({ queryKey: ['get-next-invoice-number'] })
+    }
+  }, [formik.values.date, isEditMode, queryClient])
+
+  // Update delivery log number when employee or date changes
+  useEffect(() => {
+    if (isEditMode) return; // Don't auto-update in edit mode
+
+    // Access the correct nested path: data.data.result.deliveryLogNumber
+    const deliveryLogNumber = deliveryLogNumberData?.data?.result?.deliveryLogNumber
+
+    if (deliveryLogNumber) {
+      console.log('Setting delivery log number:', deliveryLogNumber)
+      formik.setFieldValue('deliveryLogNumber', deliveryLogNumber)
+    } else if (!formik.values.deliverBy) {
+      // Clear delivery log number when employee is deselected
+      formik.setFieldValue('deliveryLogNumber', '')
+    }
+  }, [deliveryLogNumberData, formik.values.deliverBy, isEditMode])
+
   // Handle customer selection and auto-fill license fields
   useEffect(() => {
     if (formik.values.customerId && customers.length > 0) {
@@ -418,7 +487,7 @@ const AddSalesInvoicePage = () => {
   useEffect(() => {
     // Don't auto-fill in edit mode - data is already loaded
     if (isEditMode) return;
-    
+
     if (lastInvoiceData?.data?.success && lastInvoiceData.data.result) {
       const lastInvoice = lastInvoiceData.data.result
       formik.setFieldValue('licenseNumber', lastInvoice.licenseNumber || '')
@@ -447,7 +516,10 @@ const AddSalesInvoicePage = () => {
         // Handle populated inventoryId reference
         inventoryId: product.inventoryId?._id || product.inventoryId || '',
         // Format expiry date if it exists
-        expiryDate: product.expiryDate ? new Date(product.expiryDate).toISOString().split('T')[0] : ''
+        expiryDate: product.expiryDate ? new Date(product.expiryDate).toISOString().split('T')[0] : '',
+        // Include return fields
+        returnQuantity: product.returnQuantity || 0,
+        returnDate: product.returnDate ? new Date(product.returnDate).toISOString().split('T')[0] : ''
       }))
 
       formik.setValues({
@@ -458,6 +530,7 @@ const AddSalesInvoicePage = () => {
         // Handle populated bookedBy reference
         bookedBy: invoiceData.bookedBy?._id || invoiceData.bookedBy || '',
         date: invoiceData.date ? invoiceData.date.split('T')[0] : new Date().toISOString().split('T')[0],
+        salesInvoiceNumber: invoiceData.salesInvoiceNumber || '',
         licenseNumber: invoiceData.licenseNumber || '',
         licenseExpiry: invoiceData.licenseExpiry ? invoiceData.licenseExpiry.split('T')[0] : '',
         deliveryLogNumber: invoiceData.deliveryLogNumber || '',
@@ -473,17 +546,14 @@ const AddSalesInvoicePage = () => {
       if (invoiceData.customerId && typeof invoiceData.customerId === 'object') {
         setSelectedCustomerData(invoiceData.customerId)
       }
+
+      // Check if any products have returns and set isReturnMode accordingly
+      const hasReturns = formattedProducts.some(product => product.returnQuantity > 0)
+      setIsReturnMode(hasReturns)
     }
   }, [salesInvoiceDetails, isEditMode])
 
 
-
-  // Sync selectedProduct with formik value to ensure consistency
-  useEffect(() => {
-    if (productFormik.values.productId !== selectedProduct) {
-      setSelectedProduct(productFormik.values.productId)
-    }
-  }, [productFormik.values.productId])
 
   // Calculate total quantity when quantity or bonus changes
   useEffect(() => {
@@ -511,6 +581,8 @@ const AddSalesInvoicePage = () => {
       productFormik.setFieldValue('discount', 0)
       productFormik.setFieldValue('discountType', 'percentage')
       productFormik.setFieldValue('lessToMinimumCheck', false)
+      productFormik.setFieldValue('returnQuantity', 0)
+      productFormik.setFieldValue('returnDate', '')
       // Also clear price history when no product is selected
       setPriceHistory([])
     }
@@ -527,7 +599,7 @@ const AddSalesInvoicePage = () => {
 
   // Handle inventory data when it's loaded
   useEffect(() => {
-    if (selectedProduct && inventoryData?.success && inventoryData?.result && editingProductIndex === null) {
+    if (productFormik.values.productId && inventoryData?.success && inventoryData?.result && editingProductIndex === null) {
       const transformedInventory = inventoryData.result
 
       // Auto-select first batch (FEFO - First Expiry First Out) when inventory is loaded (only for new products)
@@ -545,7 +617,7 @@ const AddSalesInvoicePage = () => {
         productFormik.setFieldValue('price', priceToSet)
       }
     }
-  }, [inventoryData, selectedProduct, editingProductIndex])
+  }, [inventoryData, productFormik.values.productId, editingProductIndex])
 
   // Handle inventory selection
   useEffect(() => {
@@ -643,6 +715,30 @@ const AddSalesInvoicePage = () => {
     }
   }
 
+  // Handle return quantity change
+  const handleReturnQtyChange = (index, value) => {
+    const updatedProducts = [...formik.values.products]
+    const product = updatedProducts[index]
+    const maxReturnQty = Number(product.quantity) || 0
+    const returnQuantity = Math.min(Math.max(0, Number(value) || 0), maxReturnQty)
+
+    updatedProducts[index] = {
+      ...product,
+      returnQuantity: returnQuantity
+    }
+    formik.setFieldValue('products', updatedProducts)
+  }
+
+  // Handle return date change
+  const handleReturnDateChange = (index, value) => {
+    const updatedProducts = [...formik.values.products]
+    updatedProducts[index] = {
+      ...updatedProducts[index],
+      returnDate: value
+    }
+    formik.setFieldValue('products', updatedProducts)
+  }
+
   if (isEditMode && isLoadingSalesInvoiceDetails) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
@@ -717,12 +813,41 @@ const AddSalesInvoicePage = () => {
                     <Grid size={{ xs: 12, sm: 6, lg: 4 }}>
                       <CustomInput
                         fullWidth
+                        label="Sales Invoice Number"
+                        name="salesInvoiceNumber"
+                        value={formik.values.salesInvoiceNumber}
+                        onChange={formik.handleChange}
+                        onBlur={formik.handleBlur}
+                        error={formik.touched.salesInvoiceNumber && Boolean(formik.errors.salesInvoiceNumber)}
+                        helperText={formik.touched.salesInvoiceNumber && formik.errors.salesInvoiceNumber}
+                        placeholder={isLoadingInvoiceNumber ? "Generating..." : "Auto-generated or enter custom"}
+                        disabled={!isEditMode && isLoadingInvoiceNumber}
+                        InputProps={{
+                          endAdornment: !isEditMode && isLoadingInvoiceNumber && (
+                            <InputAdornment position="end">
+                              <CircularProgress size={20} />
+                            </InputAdornment>
+                          )
+                        }}
+                      />
+                    </Grid>
+                    <Grid size={{ xs: 12, sm: 6, lg: 4 }}>
+                      <CustomInput
+                        fullWidth
                         label="Delivery Log Number"
                         name="deliveryLogNumber"
                         value={formik.values.deliveryLogNumber}
                         onChange={formik.handleChange}
                         onBlur={formik.handleBlur}
-                        placeholder="Enter delivery log number"
+                        placeholder="Select employee to generate"
+                        disabled
+                        InputProps={{
+                          endAdornment: isLoadingDeliveryLogNumber && (
+                            <InputAdornment position="end">
+                              <CircularProgress size={20} />
+                            </InputAdornment>
+                          )
+                        }}
                       />
                     </Grid>
 
@@ -761,7 +886,7 @@ const AddSalesInvoicePage = () => {
                     </Grid>
                     {/* License Information Fields */}
                     <Grid size={{ xs: 12, sm: 6, lg: 4 }}>
-                      <Box className="p-3 border rounded-lg bg-gray-50">
+                      <Box className="p-3 border rounded-lg">
                         <Typography variant="body2" className="text-gray-600 mb-1">
                           License Number
                         </Typography>
@@ -777,7 +902,7 @@ const AddSalesInvoicePage = () => {
                       </Box>
                     </Grid>
                     <Grid size={{ xs: 12, sm: 6, lg: 4 }}>
-                      <Box className="p-3 border rounded-lg bg-gray-50">
+                      <Box className="p-3 border rounded-lg">
                         <Typography variant="body2" className="text-gray-600 mb-1">
                           License Expiry Date
                         </Typography>
@@ -813,16 +938,13 @@ const AddSalesInvoicePage = () => {
                             label="Product"
                             name="productId"
                             value={productFormik.values.productId}
-                            onChange={(e) => {
-                              productFormik.handleChange(e)
-                              setSelectedProduct(e.target.value)
-                            }}
+                            onChange={productFormik.handleChange}
                             onBlur={productFormik.handleBlur}
                             error={productFormik.touched.productId && Boolean(productFormik.errors.productId)}
                             helperText={productFormik.touched.productId && productFormik.errors.productId}
                             options={filteredProducts}
                             placeholder="Select Product"
-                            autoComplete ={true}
+                            autoComplete={true}
                           />
                         </Grid>
                         <Grid size={{ xs: 12, md: 6, lg: 4 }}>
@@ -968,7 +1090,7 @@ const AddSalesInvoicePage = () => {
                           />
                         </Grid>
                         <Grid size={{ xs: 12, md: 8, lg:6 }}>
-                          <Box className="p-3 border rounded-lg bg-gray-50">
+                          <Box className="p-3 border rounded-lg">
                             <Typography variant="body2" className="text-gray-600 mb-1">
                               Last 3 Prices to this Customer
                             </Typography>
@@ -1056,12 +1178,30 @@ const AddSalesInvoicePage = () => {
                   {/* Products List */}
                   {formik.values.products.length > 0 ? (
                     <Box>
-                      <Typography variant="h6" sx={{ mb: 3 }}>Added Products</Typography>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+                        <Typography variant="h6">Added Products</Typography>
+                        {isEditMode && (
+                          <FormControlLabel
+                            control={
+                              <Checkbox
+                                checked={isReturnMode}
+                                onChange={(e) => setIsReturnMode(e.target.checked)}
+                                color="warning"
+                              />
+                            }
+                            label={
+                              <Typography variant="body2" fontWeight="medium" color="warning.main">
+                                Check Return Products
+                              </Typography>
+                            }
+                          />
+                        )}
+                      </Box>
 
                       {/* Products Table */}
                       <Box sx={{ overflowX: 'auto' }}>
                         <table className='w-full border-collapse'>
-                          <thead className='sticky top-0 bg-white shadow-sm'>
+                          <thead className='sticky top-0 shadow-sm'>
                             <tr>
                               <th className='p-3 text-left border-b font-semibold'>Product Name</th>
                               <th className='p-3 text-left border-b font-semibold'>Batch No.</th>
@@ -1071,6 +1211,12 @@ const AddSalesInvoicePage = () => {
                               <th className='p-3 text-center border-b font-semibold'>Unit Price</th>
                               <th className='p-3 text-center border-b font-semibold'>Discount</th>
                               <th className='p-6 text-center border-b font-semibold'>Total</th>
+                              {isEditMode && (
+                                <>
+                                  <th className='p-3 text-center border-b font-semibold' style={{ color: '#ed6c02' }}>Return Qty</th>
+                                  <th className='p-3 text-center border-b font-semibold' style={{ color: '#ed6c02' }}>Return Date</th>
+                                </>
+                              )}
                               <th className='p-3 text-center border-b font-semibold'>Actions</th>
                             </tr>
                           </thead>
@@ -1102,7 +1248,7 @@ const AddSalesInvoicePage = () => {
                               const finalAmount = total - discountAmount
 
                               return (
-                                <tr key={index} className='hover:bg-gray-50'>
+                                <tr key={index} className='hover:'>
                                   <td className='p-3 border-b font-medium'>
                                     {productInfo?.label || 'Unknown Product'}
                                   </td>
@@ -1115,7 +1261,16 @@ const AddSalesInvoicePage = () => {
                                     />
                                   </td>
                                   <td className='p-3 text-center border-b'>
-                                    {quantity}
+                                    {product.returnQuantity > 0 ? (
+                                      <span>
+                                        {quantity - (product.returnQuantity || 0)}
+                                        <span className='text-xs text-gray-500 ml-1'>
+                                          ({quantity} - {product.returnQuantity})
+                                        </span>
+                                      </span>
+                                    ) : (
+                                      quantity
+                                    )}
                                   </td>
                                   <td className='p-3 text-center border-b text-green-600'>
                                     {bonus}
@@ -1132,6 +1287,38 @@ const AddSalesInvoicePage = () => {
                                   <td className='p-6 text-center border-b font-bold'>
                                     ₨{finalAmount.toLocaleString()}
                                   </td>
+                                  {isEditMode && (
+                                    <>
+                                      <td className='p-3 text-center border-b'>
+                                        <TextField
+                                          type="number"
+                                          size="small"
+                                          inputProps={{
+                                            min: 0,
+                                            max: quantity,
+                                            style: { textAlign: 'center' }
+                                          }}
+                                          value={product.returnQuantity || 0}
+                                          onChange={(e) => handleReturnQtyChange(index, e.target.value)}
+                                          disabled={!isReturnMode}
+                                          sx={{ width: '100px' }}
+                                        />
+                                      </td>
+                                      <td className='p-3 text-center border-b'>
+                                        <TextField
+                                          type="date"
+                                          size="small"
+                                          value={product.returnDate || ''}
+                                          onChange={(e) => handleReturnDateChange(index, e.target.value)}
+                                          disabled={!isReturnMode}
+                                          sx={{ width: '150px' }}
+                                          InputLabelProps={{
+                                            shrink: true,
+                                          }}
+                                        />
+                                      </td>
+                                    </>
+                                  )}
                                   <td className='p-3 text-center border-b'>
                                     <IconButton
                                       size="small"
@@ -1179,14 +1366,14 @@ const AddSalesInvoicePage = () => {
                           />
                         </Grid>
 
-                        <Grid size={{ xs: 12, md: 6 }}>
+                        {/* <Grid size={{ xs: 12, md: 6 }}>
                           <CustomInput
                             name='cash'
                             label='Cash Paid'
                             type='number'
                             placeholder='0'
                           />
-                        </Grid>
+                        </Grid> */}
 
                         {/* Payment Fields - Always show */}
                         <Grid size={{ xs: 12 }}>
@@ -1220,7 +1407,12 @@ const AddSalesInvoicePage = () => {
                               variant='contained'
                               color='primary'
                               onClick={() => paymentFormik.handleSubmit()}
-                              disabled={!paymentFormik.values.amountPaid || paymentFormik.values.amountPaid <= 0 || addPaymentMutation.isPending}
+                              // Enable negative amounts (returns). Disable only when amount is empty/invalid or mutation is pending.
+                              disabled={(
+                                paymentFormik.values.amountPaid === '' ||
+                                paymentFormik.values.amountPaid === null ||
+                                isNaN(Number(paymentFormik.values.amountPaid))
+                              ) || addPaymentMutation.isPending}
                               className='mb-0 w-full'
                               size='medium'
                               startIcon={<i className='tabler-plus' />}
@@ -1233,17 +1425,18 @@ const AddSalesInvoicePage = () => {
                         {/* Payment Records Section */}
                         {(formik.values.paymentDetails && formik.values.paymentDetails.length > 0) && (
                           <Grid size={{ xs: 12 }}>
-                            <Box className='mt-2 p-4 bg-gray-50 rounded-lg border'>
-                              <Typography variant='subtitle2' className='mb-3 font-medium text-gray-700'>
+                            <Box className='mt-2 p-4 rounded-lg border'>
+                              <Typography variant='subtitle2' className='mb-3 font-medium text-gray-700' color='primary'>
                                 Payment History
                               </Typography>
                               <div className='space-y-3 max-h-56 overflow-y-auto'>
                                 {(formik.values.paymentDetails || []).map((payment, index) => (
-                                  <div key={index} className='flex justify-between items-center p-3 bg-white rounded-md shadow-sm border border-gray-200'>
+                                  <div key={index} className='flex justify-between items-center p-3 rounded-md shadow-sm border border-gray-200'>
                                     <div className='flex items-center gap-6'>
                                       <div className='flex items-center gap-2'>
                                         <i className='tabler-calendar text-gray-500 text-sm' />
-                                        <Typography variant='body2' className='text-gray-600'>
+                                        <Typography variant='body2' className='text-gray-600'
+                                        color='primary'>
                                           {payment?.date ? new Date(payment.date).toLocaleDateString() : 'N/A'}
                                         </Typography>
                                       </div>
@@ -1325,7 +1518,8 @@ const AddSalesInvoicePage = () => {
               <Typography className='font-semibold text-success'>
                 ₨{totals.totalPaid.toLocaleString()}
               </Typography>
-            </div>                            <Divider />
+            </div>
+                              <Divider />
 
                             <div className='flex justify-between items-center'>
                               <Typography>Credit Amount:</Typography>

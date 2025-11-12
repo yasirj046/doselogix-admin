@@ -19,12 +19,12 @@ import Divider from '@mui/material/Divider'
 // Component Imports
 import CustomAvatar from '@core/components/mui/Avatar'
 
-const LedgerSummaryCards = ({ 
-  summaryData, 
-  dateRange, 
-  onDateRangeChange, 
-  onPredefinedDateRange, 
-  predefinedRanges 
+const LedgerSummaryCards = ({
+  summaryData,
+  dateRange,
+  onDateRangeChange,
+  onPredefinedDateRange,
+  predefinedRanges
 }) => {
   const [dateMenuAnchor, setDateMenuAnchor] = useState(null)
 
@@ -59,41 +59,33 @@ const LedgerSummaryCards = ({
   }
 
   const summaryCards = [
+
     {
-      title: 'Total Collected',
-      value: formatCurrency(summaryData?.totalCashReceived),
-      subtitle: 'Cash Received',
-      icon: 'tabler-currency-rupee',
+      title: 'Total Receivables',
+      value: formatCurrency(summaryData?.totalReceivables),
+      subtitle: 'Amount Yet to Receive',
+      icon: 'tabler-clock',
       color: 'success',
-      trend: '+12.5%',
-      trendColor: 'success'
+      // trend: '-5.2%',
+      // trendColor: 'error'
     },
     {
-      title: 'Total Pending',
-      value: formatCurrency(summaryData?.totalReceivables),
-      subtitle: 'Amount to Receive',
-      icon: 'tabler-clock',
+      title: 'Total Paid',
+      value: formatCurrency(summaryData?.totalCashReceived),
+      subtitle: 'Cash Paid',
+      icon: 'tabler-currency-rupee',
       color: 'warning',
-      trend: '-5.2%',
-      trendColor: 'error'
+      // trend: '+12.5%',
+      // trendColor: 'success'
     },
     {
       title: 'Total Payable',
       value: formatCurrency(summaryData?.totalPayables),
-      subtitle: 'Amount to Pay',
+      subtitle: 'Outstanding Amount Purchases',
       icon: 'tabler-credit-card',
       color: 'error',
-      trend: '+8.1%',
-      trendColor: 'warning'
-    },
-    {
-      title: 'Net Profit',
-      value: formatCurrency(summaryData?.netProfit),
-      subtitle: 'Profit/Loss',
-      icon: 'tabler-trending-up',
-      color: summaryData?.netProfit >= 0 ? 'success' : 'error',
-      trend: summaryData?.netProfit >= 0 ? '+15.3%' : '-12.7%',
-      trendColor: summaryData?.netProfit >= 0 ? 'success' : 'error'
+      // trend: '+8.1%',
+      // trendColor: 'warning'
     },
     {
       title: 'Total Sales',
@@ -101,8 +93,8 @@ const LedgerSummaryCards = ({
       subtitle: 'Sales Revenue',
       icon: 'tabler-shopping-cart',
       color: 'info',
-      trend: '+18.2%',
-      trendColor: 'success'
+      // trend: '+18.2%',
+      // trendColor: 'success'
     },
     {
       title: 'Total Purchases',
@@ -110,9 +102,18 @@ const LedgerSummaryCards = ({
       subtitle: 'Purchase Cost',
       icon: 'tabler-package',
       color: 'secondary',
-      trend: '+9.4%',
-      trendColor: 'warning'
-    }
+      // trend: '+9.4%',
+      // trendColor: 'warning'
+    },
+    {
+      title: 'Net Profit',
+      value: formatCurrency(summaryData?.netProfit),
+      subtitle: 'Profit/Loss',
+      icon: 'tabler-trending-up',
+      color: summaryData?.netProfit >= 0 ? 'success' : 'error',
+      // trend: summaryData?.netProfit >= 0 ? '+15.3%' : '-12.7%',
+      // trendColor: summaryData?.netProfit >= 0 ? 'success' : 'error'
+    },
   ]
 
   return (
@@ -147,9 +148,9 @@ const LedgerSummaryCards = ({
         <Grid container spacing={4}>
           {summaryCards.map((card, index) => (
             <Grid key={index} size={{ xs: 12, sm: 6, md: 4, lg: 2 }}>
-              <Card 
-                className='h-full border-l-4' 
-                sx={{ 
+              <Card
+                className='h-full border-l-4'
+                sx={{
                   borderLeftColor: `${card.color}.main`,
                   '&:hover': {
                     boxShadow: 4,
@@ -167,22 +168,22 @@ const LedgerSummaryCards = ({
                     >
                       <i className={card.icon} />
                     </CustomAvatar>
-                    <Chip
+                    {/* <Chip
                       label={card.trend}
                       color={card.trendColor}
                       variant='outlined'
                       size='small'
-                    />
+                    /> */}
                   </div>
-                  
+
                   <Typography variant='h6' className='mb-1 font-semibold'>
                     {card.value}
                   </Typography>
-                  
+
                   <Typography variant='body2' color='text.secondary' className='mb-2'>
                     {card.title}
                   </Typography>
-                  
+
                   <Typography variant='caption' color='text.secondary'>
                     {card.subtitle}
                   </Typography>

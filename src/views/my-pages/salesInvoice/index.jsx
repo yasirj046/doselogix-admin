@@ -99,8 +99,8 @@ const SalesInvoicePage = () => {
       const rawEmployees = employeesData.data.result?.docs || employeesData.data.result || []
 
       const transformedEmployees = rawEmployees.map(employee => ({
-        value: employee._id || employee.id,
-        label: employee.employeeName || employee.name || 'Unknown Employee'
+        value: employee.value || employee._id || employee.id,
+        label: employee.label || employee.employeeName || employee.name || 'Unknown Employee'
       }))
 
       setEmployees(transformedEmployees)
@@ -119,7 +119,18 @@ const SalesInvoicePage = () => {
         <div className='flex items-center gap-2'>
           <Icon className='tabler-file-invoice text-primary' />
           <Typography color='text.primary' className='font-medium'>
-            #{row.original.deliveryLogNumber || 'N/A'}
+            {row.original.salesInvoiceNumber || 'N/A'}
+          </Typography>
+        </div>
+      )
+    }),
+    columnHelper.accessor('deliveryLogNumber', {
+      header: 'Delivery Log #',
+      cell: ({ row }) => (
+        <div className='flex items-center gap-2'>
+          <Icon className='tabler-file-invoice text-primary' />
+          <Typography color='text.primary' className='font-medium'>
+            {row.original.deliveryLogNumber || 'N/A'}
           </Typography>
         </div>
       )
@@ -188,12 +199,12 @@ const SalesInvoicePage = () => {
       cell: ({ row }) => {
         const totalPaid = (row.original.cash || 0) +
           (row.original.paymentDetails || []).reduce((sum, payment) => sum + (payment.amountPaid || 0), 0)
-        const remainingBalance = Math.max(0, (row.original.grandTotal || 0) - totalPaid)
+        const remainingBalance = (row.original.grandTotal || 0) - totalPaid
 
         return (
           <Chip
             label={`₨${remainingBalance.toLocaleString()}`}
-            color={remainingBalance === 0 ? 'success' : remainingBalance < (row.original.grandTotal || 0) / 2 ? 'warning' : 'error'}
+            color={remainingBalance === 0 ? 'success' : remainingBalance < 0 ? 'info' : remainingBalance < (row.original.grandTotal || 0) / 2 ? 'warning' : 'error'}
             variant='tonal'
             size='small'
           />
@@ -349,7 +360,7 @@ const SalesInvoicePage = () => {
       remainingBalance: (() => {
         const totalPaid = (item.cash || 0) +
           (item.paymentDetails || []).reduce((sum, payment) => sum + (payment.amountPaid || 0), 0)
-        return Math.max(0, (item.grandTotal || 0) - totalPaid)
+        return (item.grandTotal || 0) - totalPaid
       })(),
 
       // Add status for filtering (matches what backend expects)

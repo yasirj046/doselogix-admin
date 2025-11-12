@@ -38,11 +38,11 @@ const StyledTableRow = styled(TableRow)(({ theme }) => ({
   },
 }))
 
-const LedgerSheet = ({ 
-  dateRange, 
-  filters = {}, 
+const LedgerSheet = ({
+  dateRange,
+  filters = {},
   summaryData = null,
-  onRowClick = null 
+  onRowClick = null
 }) => {
   // States
   const [transactions, setTransactions] = useState([])
@@ -66,7 +66,7 @@ const LedgerSheet = ({
         endDate: dateRange.endDate.toISOString(),
         ...filters
       }
-      
+
       const response = await api.get('/ledger/transactions', { params })
       return response.data
     },
@@ -217,7 +217,7 @@ const LedgerSheet = ({
                 </TableRow>
               ) : (
                 transactions.map((transaction, index) => (
-                  <StyledTableRow 
+                  <StyledTableRow
                     key={transaction._id || index}
                     hover
                     onClick={() => handleRowClick(transaction)}
@@ -250,8 +250,8 @@ const LedgerSheet = ({
                       {transaction.customerName || 'N/A'}
                     </TableCell>
                     <TableCell align='right'>
-                      <Typography 
-                        variant='body2' 
+                      <Typography
+                        variant='body2'
                         color={transaction.debitAmount > 0 ? 'success.main' : 'text.secondary'}
                         fontWeight={transaction.debitAmount > 0 ? 'medium' : 'normal'}
                       >
@@ -259,8 +259,8 @@ const LedgerSheet = ({
                       </Typography>
                     </TableCell>
                     <TableCell align='right'>
-                      <Typography 
-                        variant='body2' 
+                      <Typography
+                        variant='body2'
                         color={transaction.creditAmount > 0 ? 'error.main' : 'text.secondary'}
                         fontWeight={transaction.creditAmount > 0 ? 'medium' : 'normal'}
                       >
@@ -284,7 +284,7 @@ const LedgerSheet = ({
 
         {/* Ledger Footer */}
         {summaryData && (
-          <Box className='p-6 border-t border-divider bg-gray-50'>
+          <Box className='p-6 border-t border-divider'>
             <div className='grid grid-cols-1 md:grid-cols-3 gap-4'>
               <div className='text-center'>
                 <Typography variant='body2' color='text.secondary'>
@@ -306,8 +306,8 @@ const LedgerSheet = ({
                 <Typography variant='body2' color='text.secondary'>
                   Net Profit
                 </Typography>
-                <Typography 
-                  variant='h6' 
+                <Typography
+                  variant='h6'
                   color={summaryData.netProfit >= 0 ? 'success.main' : 'error.main'}
                 >
                   {formatCurrency(summaryData.netProfit)}

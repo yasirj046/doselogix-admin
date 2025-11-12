@@ -148,6 +148,7 @@ export const API_URLS = {
   GET_CUSTOMER_BALANCE: '/sales-invoices/customer/', // + customerId + '/balance'
   GET_AVAILABLE_INVENTORY: '/sales-invoices/inventory/', // + productId
   GET_PRICE_HISTORY: '/sales-invoices/price-history', // ?customerId=&productId=
+  GET_NEXT_INVOICE_NUMBER: '/sales-invoices/next-invoice-number', // ?date=
   GET_CUSTOMER_SALES_HISTORY: '/sales-invoices/customer/', // + customerId + '/history'
   GET_EMPLOYEE_SALES_PERFORMANCE: '/sales-invoices/employee/performance',
 
@@ -173,4 +174,17 @@ export const API_URLS = {
   GET_OUT_OF_STOCK_ITEMS: '/inventory/out-of-stock',
   GET_EXPIRING_PRODUCTS: '/inventory/expiring',
   GET_EXPIRED_PRODUCTS: '/inventory/expired',
+
+  //Delivery Logs
+  GET_DELIVERY_LOGS: '/delivery-logs',
+  CREATE_DELIVERY_LOG: '/delivery-logs',
+  GET_DELIVERY_LOG_BY_ID: '/delivery-logs/', // + id
+  UPDATE_DELIVERY_LOG: '/delivery-logs/', // + id
+  DELETE_DELIVERY_LOG: '/delivery-logs/', // + id
+  TOGGLE_DELIVERY_LOG_STATUS: '/delivery-logs/', // + id + '/toggle-status'
+  RECALCULATE_DELIVERY_LOG_TOTAL: '/delivery-logs/', // + id + '/recalculate'
+  SYNC_MISSING_INVOICES: '/delivery-logs/sync-missing-invoices',
+  GET_DELIVERY_LOGS_BY_DATE_RANGE: '/delivery-logs/date-range',
+  GET_DELIVERY_LOG_STATS: '/delivery-logs/stats',
+  GET_DELIVERY_LOG_PREVIEW_NUMBER: '/delivery-logs/preview-number',
 }

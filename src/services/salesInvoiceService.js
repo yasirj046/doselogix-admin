@@ -81,7 +81,8 @@ export const salesInvoiceService = {
   addPaymentToCredit: () => {
     return useMutation({
       mutationFn: ({ salesInvoiceId, paymentData }) => {
-        return axios.post(`${API_BASE_URL}${API_URLS.ADD_SALES_PAYMENT}${salesInvoiceId}`, paymentData)
+        // Endpoint path expected: /sales-invoices/:id/add-payment
+        return axios.post(`${API_BASE_URL}${API_URLS.ADD_SALES_PAYMENT}${salesInvoiceId}/add-payment`, paymentData)
       }
     })
   },
@@ -90,7 +91,8 @@ export const salesInvoiceService = {
   removePaymentFromSalesInvoice: () => {
     return useMutation({
       mutationFn: ({ salesInvoiceId, paymentIndex }) => {
-        return axios.delete(`${API_BASE_URL}${API_URLS.REMOVE_SALES_PAYMENT}${salesInvoiceId}/${paymentIndex}`)
+        // Endpoint path expected: /sales-invoices/:id/remove-payment/:paymentIndex
+        return axios.delete(`${API_BASE_URL}${API_URLS.REMOVE_SALES_PAYMENT}${salesInvoiceId}/remove-payment/${paymentIndex}`)
       }
     })
   },
@@ -152,11 +154,16 @@ export const salesInvoiceService = {
     return useQuery({
       queryKey: [queryKey, productId],
       queryFn: async () => {
+        console.log('📡 Fetching inventory for product:', productId)
         const response = await axios.get(`${API_BASE_URL}${API_URLS.GET_AVAILABLE_INVENTORY}${productId}`)
+
+        console.log('📦 Raw inventory response:', response.data)
 
         // Transform the inventory data for easier use in components
         if (response.data?.success) {
           const inventory = response.data.result || []
+          console.log('📋 Inventory items count:', inventory.length)
+
           const transformedInventory = inventory.map(item => ({
             value: item._id || item.id,
             label: item.batchNumber,
@@ -171,6 +178,8 @@ export const salesInvoiceService = {
             }
           }))
 
+          console.log('✅ Transformed inventory:', transformedInventory)
+
           // Return the transformed data
           return {
             ...response.data,
@@ -179,6 +188,7 @@ export const salesInvoiceService = {
           }
         }
 
+        console.log('❌ Inventory response not successful or missing data')
         return response.data
       },
       enabled: !!productId,
@@ -237,6 +247,20 @@ export const salesInvoiceService = {
         return axios.get(`${API_BASE_URL}${API_URLS.GET_PRICE_HISTORY}?${params}`)
       },
       enabled: !!(customerId && productId),
+      retry: false,
+      refetchOnWindowFocus: false
+    })
+  },
+
+  // Get next sales invoice number (preview only, not saved)
+  getNextInvoiceNumber: (queryKey, date) => {
+    return useQuery({
+      queryKey: [queryKey, date],
+      queryFn: async () => {
+        const params = date ? new URLSearchParams({ date }).toString() : ''
+        const url = params ? `${API_BASE_URL}${API_URLS.GET_NEXT_INVOICE_NUMBER}?${params}` : `${API_BASE_URL}${API_URLS.GET_NEXT_INVOICE_NUMBER}`
+        return axios.get(url)
+      },
       retry: false,
       refetchOnWindowFocus: false
     })

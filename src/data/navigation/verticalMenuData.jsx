@@ -69,6 +69,11 @@ const verticalMenuData = dictionary => [
     icon: 'tabler-invoice'
   },
   {
+    label: "Delivery Logs",
+    href: '/delivery-log',
+    icon: 'tabler-truck-delivery'
+  },
+  {
     label: "Expenses",
     href: '/expenses',
     icon: 'tabler-currency-dollar'

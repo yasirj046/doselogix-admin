@@ -496,7 +496,7 @@ const CustomDataTable = ({
                       key={row.id}
                       className={classnames({
                         selected: row.getIsSelected(),
-                        'cursor-pointer hover:bg-gray-50': onRowClick
+                        'cursor-pointer hover:': onRowClick
                       })}
                       onClick={() => handleRowClick(row)}
                     >

@@ -15,6 +15,9 @@ import CardContent from '@mui/material/CardContent'
 import CardHeader from '@mui/material/CardHeader'
 import Chip from '@mui/material/Chip'
 import Box from '@mui/material/Box'
+import Checkbox from '@mui/material/Checkbox'
+import FormControlLabel from '@mui/material/FormControlLabel'
+import TextField from '@mui/material/TextField'
 
 // Third-party Imports
 import * as Yup from 'yup'
@@ -45,6 +48,7 @@ const AddPurchaseInvoiceDrawer = props => {
   const [filteredProducts, setFilteredProducts] = useState([])
   const [editingProductIndex, setEditingProductIndex] = useState(null)
   const [priceCalculation, setPriceCalculation] = useState()
+  const [isReturnMode, setIsReturnMode] = useState(false)
 
   const queryClient = useQueryClient()
 
@@ -74,7 +78,9 @@ const AddPurchaseInvoiceDrawer = props => {
     salePrice: Yup.number().min(0, 'Sale price must be positive').required('Sale price is required'),
     minSalePrice: Yup.number().min(0, 'Min sale price must be positive').required('Min sale price is required'),
     retailPrice: Yup.number().min(0, 'Retail price must be positive').required('Retail price is required'),
-    invoicePrice: Yup.number().min(0, 'Invoice price must be positive').required('Invoice price is required')
+    invoicePrice: Yup.number().min(0, 'Invoice price must be positive').required('Invoice price is required'),
+    returnQuantity: Yup.number().min(0, 'Return quantity must be positive'),
+    returnDate: Yup.date().nullable()
   })
 
   // Main purchase entry formik
@@ -109,7 +115,7 @@ const AddPurchaseInvoiceDrawer = props => {
       specialDiscount: Yup.number().min(0, 'Special discount must be positive'),
       grandTotal: Yup.number().min(0, 'Grand total must be positive'),
       cashPaid: Yup.number().min(0, 'Cash paid must be positive'),
-      creditAmount: Yup.number().min(0, 'Credit amount must be positive'),
+      creditAmount: Yup.number().min(-999999, 'Credit amount cannot be less than -999,999'),
       remarks: Yup.string().trim(),
       // New payment validation
       newPaymentDate: Yup.date(),
@@ -128,7 +134,9 @@ const AddPurchaseInvoiceDrawer = props => {
           salePrice: Yup.number().min(0, 'Sale price must be positive').required('Sale price is required'),
           minSalePrice: Yup.number().min(0, 'Min sale price must be positive').required('Min sale price is required'),
           retailPrice: Yup.number().min(0, 'Retail price must be positive').required('Retail price is required'),
-          invoicePrice: Yup.number().min(0, 'Invoice price must be positive').required('Invoice price is required')
+          invoicePrice: Yup.number().min(0, 'Invoice price must be positive').required('Invoice price is required'),
+          returnQuantity: Yup.number().min(0, 'Return quantity must be positive'),
+          returnDate: Yup.date().nullable()
         })
       ).min(1, 'At least one product is required')
     }),
@@ -142,8 +150,12 @@ const AddPurchaseInvoiceDrawer = props => {
           // Calculate total quantity in pieces
           const quantity = ((parseFloat(product.cartons) || 0) * parseFloat(cartonSize)) + (parseFloat(product.pieces) || 0)
 
-          // Calculate total amount before discount
-          const grossAmount = quantity * (parseFloat(product.netPrice) || 0)
+          // Calculate effective quantity after returns
+          const returnQuantity = parseFloat(product.returnQuantity) || 0
+          const effectiveQuantity = quantity - returnQuantity
+
+          // Calculate total amount before discount (based on effective quantity)
+          const grossAmount = effectiveQuantity * (parseFloat(product.netPrice) || 0)
 
           // Calculate discount amount
           let discountAmount = 0
@@ -156,23 +168,29 @@ const AddPurchaseInvoiceDrawer = props => {
           // Calculate total amount after discount
           const totalAmount = grossAmount - discountAmount
 
-          // Calculate effective cost per piece
-          const effectiveCostPerPiece = quantity > 0 ? totalAmount / quantity : 0
+          // Calculate effective cost per piece (including bonus, excluding returns)
+          const totalAvailablePieces = effectiveQuantity + (parseFloat(product.bonus) || 0)
+          const effectiveCostPerPiece = totalAvailablePieces > 0 ? totalAmount / totalAvailablePieces : 0
 
-          return {
+          // Base product data
+          const baseProductData = {
             ...product,
             quantity,
             totalAmount,
-            effectiveCostPerPiece
+            effectiveCostPerPiece,
+            returnQuantity: returnQuantity || 0,
+            returnDate: product.returnDate || null
           }
+
+          return baseProductData
         })
 
         const calculatedValues = {
           ...values,
           products: calculatedProducts,
           grandTotal: Math.round(values.grossTotal + values.freight - values.flatDiscount - values.specialDiscount),
-          creditAmount: Math.round((values.grossTotal + values.freight - values.flatDiscount - values.specialDiscount) -
-                       ((values.cashPaid || 0) + (values.paymentDetails || []).reduce((sum, payment) => sum + (payment.amountPaid || 0), 0)))
+          creditAmount: Math.round(((values.cashPaid || 0) + (values.paymentDetails || []).reduce((sum, payment) => sum + (payment.amountPaid || 0), 0)) -
+                       (values.grossTotal + values.freight - values.flatDiscount - values.specialDiscount))
         }
 
         if (onePurchaseEntry) {
@@ -234,7 +252,9 @@ const AddPurchaseInvoiceDrawer = props => {
       retailPrice: 0,
       invoicePrice: 0,
       cartonSize: 0,
-      packingSize: 0
+      packingSize: 0,
+      returnQuantity: 0,
+      returnDate: ''
     },
     validationSchema: productValidationSchema,
     onSubmit: async (values, { resetForm }) => {
@@ -396,10 +416,14 @@ const AddPurchaseInvoiceDrawer = props => {
       const selectedProduct = filteredProducts.find(p => p._id === product.productId)
 
       // Calculate total pieces: (cartons * cartonSize) + pieces
-      const totalPieces = ((parseFloat(product.cartons) || 0) * parseFloat(product.cartonSize)) + (parseFloat(product.pieces) || 0)
+      // Use cartonSize from product object (which includes it) or from selectedProduct
+      const cartonSize = parseFloat(product.cartonSize) || parseFloat(selectedProduct?.cartonSize) || 0
+      const totalPieces = ((parseFloat(product.cartons) || 0) * cartonSize) + (parseFloat(product.pieces) || 0)
 
+      // Calculate effective pieces after returns
+      const effectivePieces = totalPieces - (parseFloat(product.returnQuantity) || 0)
 
-      const grossAmount = totalPieces * (parseFloat(product.netPrice) || 0)
+      const grossAmount = effectivePieces * (parseFloat(product.netPrice) || 0)
       let discountAmount = 0
 
       if (product.discountType === 'percentage') {
@@ -424,7 +448,7 @@ const AddPurchaseInvoiceDrawer = props => {
     // Calculate total paid: cash paid + sum of all payment details
     const totalPaymentDetails = (formik.values.paymentDetails || []).reduce((sum, payment) => sum + (payment.amountPaid || 0), 0)
     const totalPaid = (parseFloat(formik.values.cashPaid) || 0) + totalPaymentDetails
-    const creditAmount = Math.round(grandTotal) - totalPaid
+    const creditAmount = Math.round(totalPaid) - Math.round(grandTotal)
     formik.setFieldValue('creditAmount', Math.round(creditAmount))
   }
 
@@ -483,7 +507,12 @@ const AddPurchaseInvoiceDrawer = props => {
       // Format products data with proper date formatting
       const formattedProducts = (purchaseData.products || []).map(product => ({
         ...product,
-        expiryDate: product.expiryDate ? new Date(product.expiryDate).toISOString().split('T')[0] : ''
+        productId: product.productId?._id || product.productId, // Ensure productId is just the ID string
+        expiryDate: product.expiryDate ? new Date(product.expiryDate).toISOString().split('T')[0] : '',
+        returnQuantity: product.returnQuantity || 0,
+        returnDate: product.returnDate ? new Date(product.returnDate).toISOString().split('T')[0] : '',
+        cartonSize: product.cartonSize || 0,
+        packingSize: product.packingSize || 0
       }))
 
       // Populate main form with purchase entry data
@@ -513,25 +542,20 @@ const AddPurchaseInvoiceDrawer = props => {
       }
 
       setOnePurchaseEntryData(purchaseData)
+
+      // Check if any products have returns and set isReturnMode accordingly
+      const hasReturns = formattedProducts.some(product => product.returnQuantity > 0)
+      setIsReturnMode(hasReturns)
+
+      // Recalculate totals after products are loaded
+      // Use setTimeout to ensure filteredProducts are updated
+      setTimeout(() => {
+        if (formattedProducts.length > 0) {
+          calculateTotals(formattedProducts)
+        }
+      }, 100)
     }
   }, [fetchedOnePurchaseEntryData, onePurchaseEntry])
-
-  // Effect to handle product selection changes
-  useEffect(() => {
-    const productId = productFormik.values.productId
-    if (productId && filteredProducts.length > 0) {
-      const selectedProduct = filteredProducts.find(p => p._id === productId)
-      if (selectedProduct) {
-        productFormik.setFieldValue('cartonSize', selectedProduct.cartonSize)
-        productFormik.setFieldValue('packingSize', selectedProduct.packingSize)
-
-        // Optionally auto-fill some pricing fields if available
-        if (selectedProduct.defaultSalePrice) {
-          productFormik.setFieldValue('salePrice', selectedProduct.defaultSalePrice)
-        }
-      }
-    }
-  }, [productFormik.values.productId, filteredProducts])
 
   return (
     <Dialog
@@ -613,7 +637,7 @@ const AddPurchaseInvoiceDrawer = props => {
                     {selectedBrand && (
                       <>
                         <Grid size={{ xs: 12, md: 3 }}>
-                          <Box className="p-3 border rounded-lg bg-gray-50">
+                          <Box className="p-3 border rounded-lg">
                             <Typography variant="body2" className="text-gray-600 mb-1">
                               Last Invoice Number
                             </Typography>
@@ -630,7 +654,7 @@ const AddPurchaseInvoiceDrawer = props => {
                         </Grid>
 
                         <Grid size={{ xs: 12, md: 3 }}>
-                          <Box className="p-3 border rounded-lg bg-gray-50">
+                          <Box className="p-3 border rounded-lg">
                             <Typography variant="body2" className="text-gray-600 mb-1">
                               Last Invoice Price
                             </Typography>
@@ -666,7 +690,7 @@ const AddPurchaseInvoiceDrawer = props => {
                 <CardHeader title="Products" />
                 <CardContent>
                   {/* Product Entry Form */}
-                  <div className='mb-6 p-4 border rounded-lg bg-gray-50 product-form-section'>
+                  <div className='mb-6 p-4 border rounded-lg product-form-section'>
                     {editingProductIndex !== null && (
                       <div className='mb-4 p-3 bg-blue-50 border border-blue-200 rounded-md'>
                         <div className='flex items-center justify-between'>
@@ -725,7 +749,7 @@ const AddPurchaseInvoiceDrawer = props => {
                           />
                         </Grid>
 
-                        <Grid size={{ xs: 12, md: 2 }}>
+                        <Grid size={{ xs: 12, md: 3 }}>
                           <CustomInput
                             name='cartons'
                             label='Cartons'
@@ -735,7 +759,7 @@ const AddPurchaseInvoiceDrawer = props => {
                           />
                         </Grid>
 
-                        <Grid size={{ xs: 12, md: 2 }}>
+                        <Grid size={{ xs: 12, md: 3 }}>
                           <CustomInput
                             name='pieces'
                             label='Pieces'
@@ -745,7 +769,7 @@ const AddPurchaseInvoiceDrawer = props => {
                           />
                         </Grid>
 
-                        <Grid size={{ xs: 12, md: 2 }}>
+                        <Grid size={{ xs: 12, md: 3 }}>
                           <CustomInput
                             name='totalQuantity'
                             label='Total Quantity'
@@ -759,7 +783,7 @@ const AddPurchaseInvoiceDrawer = props => {
                           />
                         </Grid>
 
-                        <Grid size={{ xs: 12, md: 2 }}>
+                        <Grid size={{ xs: 12, md: 3 }}>
                           <CustomInput
                             name='bonus'
                             label='Bonus'
@@ -768,27 +792,7 @@ const AddPurchaseInvoiceDrawer = props => {
                           />
                         </Grid>
 
-                        <Grid size={{ xs: 12, md: 2 }}>
-                          <CustomInput
-                            name='discount'
-                            label='Discount'
-                            type='number'
-                            placeholder='0'
-                          />
-                        </Grid>
-
-                        <Grid size={{ xs: 12, md: 2 }}>
-                          <CustomSelect
-                            name='discountType'
-                            label='Discount Type'
-                            options={[
-                              { value: 'percentage', label: 'Percentage' },
-                              { value: 'flat', label: 'Flat Amount' }
-                            ]}
-                          />
-                        </Grid>
-
-                        <Grid size={{ xs: 12, md: 2.4 }}>
+                        <Grid size={{ xs: 12, md: 1.71 }}>
                           <CustomInput
                             name='netPrice'
                             label='Net Price'
@@ -798,7 +802,7 @@ const AddPurchaseInvoiceDrawer = props => {
                           />
                         </Grid>
 
-                        <Grid size={{ xs: 12, md: 2.4 }}>
+                        <Grid size={{ xs: 12, md: 1.71 }}>
                           <CustomInput
                             name='salePrice'
                             label='Sale Price'
@@ -808,7 +812,7 @@ const AddPurchaseInvoiceDrawer = props => {
                           />
                         </Grid>
 
-                        <Grid size={{ xs: 12, md: 2.4 }}>
+                        <Grid size={{ xs: 12, md: 1.71 }}>
                           <CustomInput
                             name='minSalePrice'
                             label='Min Sale Price'
@@ -818,7 +822,7 @@ const AddPurchaseInvoiceDrawer = props => {
                           />
                         </Grid>
 
-                        <Grid size={{ xs: 12, md: 2.4 }}>
+                        <Grid size={{ xs: 12, md: 1.71 }}>
                           <CustomInput
                             name='retailPrice'
                             label='Retail Price'
@@ -828,13 +832,33 @@ const AddPurchaseInvoiceDrawer = props => {
                           />
                         </Grid>
 
-                        <Grid size={{ xs: 12, md: 2.4 }}>
+                        <Grid size={{ xs: 12, md: 1.71 }}>
                           <CustomInput
                             name='invoicePrice'
                             label='Invoice Price'
                             type='number'
                             placeholder='0'
                             requiredField
+                          />
+                        </Grid>
+
+                        <Grid size={{ xs: 12, md: 1.71 }}>
+                          <CustomInput
+                            name='discount'
+                            label='Discount'
+                            type='number'
+                            placeholder='0'
+                          />
+                        </Grid>
+
+                        <Grid size={{ xs: 12, md: 1.71 }}>
+                          <CustomSelect
+                            name='discountType'
+                            label='Discount Type'
+                            options={[
+                              { value: 'percentage', label: 'Percentage' },
+                              { value: 'flat', label: 'Flat Amount' }
+                            ]}
                           />
                         </Grid>
 
@@ -867,8 +891,28 @@ const AddPurchaseInvoiceDrawer = props => {
 
                   {/* Products Table */}
                   <div className='overflow-auto' style={{ maxHeight: '400px' }}>
+                    {formik.values.products.length > 0 && onePurchaseEntry && (
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+                        <Typography variant="h6">Added Products</Typography>
+                        {onePurchaseEntry && (<FormControlLabel
+                          control={
+                            <Checkbox
+                              checked={isReturnMode}
+                              onChange={(e) => setIsReturnMode(e.target.checked)}
+                              color="warning"
+                            />
+                          }
+                          label={
+                            <Typography variant="body2" fontWeight="medium" color="warning.main">
+                              Check Return Products
+                            </Typography>
+                          }
+                        />
+                        )}
+                      </Box>
+                    )}
                     <table className='w-full border-collapse'>
-                      <thead className='sticky top-0 bg-white shadow-sm'>
+                      <thead className='sticky top-0 shadow-sm'>
                         <tr>
                           <th className='p-3 text-left border-b'>Product</th>
                           <th className='p-3 text-left border-b'>Batch</th>
@@ -877,6 +921,12 @@ const AddPurchaseInvoiceDrawer = props => {
                           <th className='p-3 text-center border-b'>Pieces</th>
                           <th className='p-3 text-center border-b'>Quantity</th>
                           <th className='p-3 text-center border-b'>Bonus</th>
+                          {onePurchaseEntry && (
+                            <>
+                              <th className='p-3 text-center border-b font-semibold' style={{ color: '#ed6c02' }}>Return Qty</th>
+                              <th className='p-3 text-center border-b font-semibold' style={{ color: '#ed6c02' }}>Return Date</th>
+                            </>
+                          )}
                           <th className='p-3 text-center border-b'>Net Price</th>
                           <th className='p-3 text-center border-b'>Sale Price</th>
                           <th className='p-3 text-center border-b'>Min Sale</th>
@@ -890,22 +940,25 @@ const AddPurchaseInvoiceDrawer = props => {
                       <tbody>
                         {formik.values.products.length === 0 ? (
                           <tr>
-                            <td colSpan={14} className='p-4 text-center text-gray-500'>
+                            <td colSpan={16} className='p-4 text-center text-gray-500'>
                               No products added yet
                             </td>
                           </tr>
                         ) : (
                           formik.values.products.map((product, index) => {
                             const selectedProduct = filteredProducts.find(p => p._id === product.productId)
-                            const totalPieces = ((parseFloat(product.cartons) || 0) * parseFloat(selectedProduct?.cartonSize || 0)) + (parseFloat(product.pieces) || 0)
-                            const grossAmount = totalPieces * (parseFloat(product.netPrice) || 0)
+                            // Use cartonSize from product object (if loaded from backend) or from selectedProduct
+                            const cartonSize = parseFloat(product.cartonSize) || parseFloat(selectedProduct?.cartonSize) || 0
+                            const totalPieces = ((parseFloat(product.cartons) || 0) * cartonSize) + (parseFloat(product.pieces) || 0)
+                            const effectivePieces = totalPieces - (parseFloat(product.returnQuantity) || 0)
+                            const grossAmount = effectivePieces * (parseFloat(product.netPrice) || 0)
                             const discountAmount = product.discountType === 'percentage'
                               ? grossAmount * ((parseFloat(product.discount) || 0) / 100)
                               : parseFloat(product.discount) || 0
                             const total = grossAmount - discountAmount
 
                             return (
-                              <tr key={index} className='hover:bg-gray-50'>
+                              <tr key={index} className='hover:bg-blue-50'>
                                 <td className='p-3 border-b'>{selectedProduct?.productName || 'N/A'}</td>
                                 <td className='p-3 border-b'>
                                   <Chip
@@ -918,8 +971,65 @@ const AddPurchaseInvoiceDrawer = props => {
                                 <td className='p-3 border-b'>{new Date(product.expiryDate).toLocaleDateString()}</td>
                                 <td className='p-3 text-center border-b'>{product.cartons}</td>
                                 <td className='p-3 text-center border-b'>{product.pieces}</td>
-                                <td className='p-3 text-center border-b font-medium text-blue-600'>{totalPieces}</td>
+                                <td className='p-3 text-center border-b font-medium text-blue-600'>
+                                  {effectivePieces}
+                                  {product.returnQuantity > 0 && (
+                                    <span className='text-xs text-gray-500 ml-1'>
+                                      ({totalPieces} - {product.returnQuantity})
+                                    </span>
+                                  )}
+                                </td>
                                 <td className='p-3 text-center border-b'>{product.bonus || 0}</td>
+                                {onePurchaseEntry && (
+                                  <>
+                                    <td className='p-3 text-center border-b'>
+                                      <TextField
+                                        type="number"
+                                        size="small"
+                                        inputProps={{
+                                          min: 0,
+                                          max: totalPieces,
+                                          style: { textAlign: 'center' }
+                                        }}
+                                        value={product.returnQuantity || 0}
+                                        onChange={(e) => {
+                                          const updatedProducts = [...formik.values.products]
+                                          const maxReturnQty = totalPieces
+                                          const returnQuantity = Math.min(Math.max(0, Number(e.target.value) || 0), maxReturnQty)
+                                          updatedProducts[index] = {
+                                            ...product,
+                                            returnQuantity: returnQuantity
+                                          }
+                                          formik.setFieldValue('products', updatedProducts)
+                                          // Recalculate totals when return quantity changes
+                                          calculateTotals(updatedProducts)
+                                        }}
+                                        disabled={!isReturnMode}
+                                        sx={{ width: '100px' }}
+                                      />
+                                    </td>
+                                    <td className='p-3 text-center border-b'>
+                                      <TextField
+                                        type="date"
+                                        size="small"
+                                        value={product.returnDate || ''}
+                                        onChange={(e) => {
+                                          const updatedProducts = [...formik.values.products]
+                                          updatedProducts[index] = {
+                                            ...product,
+                                            returnDate: e.target.value
+                                          }
+                                          formik.setFieldValue('products', updatedProducts)
+                                        }}
+                                        disabled={!isReturnMode}
+                                        sx={{ width: '150px' }}
+                                        InputLabelProps={{
+                                          shrink: true,
+                                        }}
+                                      />
+                                    </td>
+                                  </>
+                                )}
                                 <td className='p-3 text-center border-b'>₨{parseFloat(product.netPrice).toLocaleString()}</td>
                                 <td className='p-3 text-center border-b'>₨{parseFloat(product.salePrice || 0).toLocaleString()}</td>
                                 <td className='p-3 text-center border-b'>₨{parseFloat(product.minSalePrice || 0).toLocaleString()}</td>
@@ -1043,7 +1153,7 @@ const AddPurchaseInvoiceDrawer = props => {
                             {/* Payment Records Section */}
                             {(formik.values.paymentDetails && formik.values.paymentDetails.length > 0) && (
                               <Grid size={{ xs: 12 }}>
-                                <Box className='mt-2 p-4 bg-gray-50 rounded-lg border'>
+                                <Box className='mt-2 p-4 rounded-lg border'>
                                   <Typography variant='subtitle2' className='mb-3 font-medium text-gray-700'>
                                     Payment History
                                   </Typography>
@@ -1146,8 +1256,8 @@ const AddPurchaseInvoiceDrawer = props => {
 
                             <div className='flex justify-between items-center'>
                               <Typography>Credit Amount:</Typography>
-                              <Typography className={`font-medium ${ formik.values.grandTotal - ((formik.values.cashPaid || 0) + (formik.values.paymentDetails || []).reduce((sum, payment) => sum + (payment.amountPaid || 0), 0)) > 0 ? 'text-warning' : 'text-success'}`}>
-                                ₨{(formik.values.grandTotal - ((formik.values.cashPaid || 0) + (formik.values.paymentDetails || []).reduce((sum, payment) => sum + (payment.amountPaid || 0), 0))).toLocaleString()}
+                              <Typography className={`font-medium ${ ((formik.values.cashPaid || 0) + (formik.values.paymentDetails || []).reduce((sum, payment) => sum + (payment.amountPaid || 0), 0)) - formik.values.grandTotal > 0 ? 'text-success' : 'text-warning'}`}>
+                                ₨{(((formik.values.cashPaid || 0) + (formik.values.paymentDetails || []).reduce((sum, payment) => sum + (payment.amountPaid || 0), 0)) - formik.values.grandTotal).toLocaleString()}
                               </Typography>
                             </div>
                           </div>
@@ -1162,7 +1272,7 @@ const AddPurchaseInvoiceDrawer = props => {
         </div>
       </DialogContent>
 
-      <DialogActions style={{ borderTop: '22px solid white', height: 64, display: 'flex', alignItems: 'center' }}>
+      <DialogActions style={{ borderTop: '22px', height: 64, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', padding: '0 24px' }}>
         <Button variant='tonal' color='error' onClick={closeModal}>
           Cancel
         </Button>

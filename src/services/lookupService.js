@@ -142,6 +142,16 @@ export const lookupService = {
       refetchOnWindowFocus: false
     })
   },
+  getSalesmenLookup: queryKey => {
+    return useQuery({
+      queryKey: [queryKey],
+      queryFn: () => {
+        return axios.get(`${API_BASE_URL}${API_URLS.getEmployeesLookup}`)
+      },
+      retry: false,
+      refetchOnWindowFocus: false
+    })
+  },
   getProductsLookup: queryKey => {
     return useQuery({
       queryKey: [queryKey],

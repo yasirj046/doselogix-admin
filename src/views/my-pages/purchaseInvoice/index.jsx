@@ -111,15 +111,18 @@ const PurchaseInvoicePage = () => {
           const cashPaid = row.original.cashPaid || 0
           const paymentDetails = row.original.paymentDetails || []
           const totalPayments = paymentDetails.reduce((sum, payment) => sum + (payment.amountPaid || 0), 0)
-          remainingBalance = grandTotal - cashPaid - totalPayments
+          remainingBalance = cashPaid + totalPayments - grandTotal
         }
 
-        const color = remainingBalance > 0 ? 'error' : 'success'
+  // Show actual value: positive if vendor owes us, negative if we owe vendor
+  // Requirement: if outstanding balance is positive -> grey, if it's 0 -> green
+  const color = remainingBalance > 0 ? 'default' : remainingBalance < 0 ? 'error' : 'success'
+        const displayValue = remainingBalance
 
         return (
           <Chip
             variant='tonal'
-            label={`₨${Math.max(0, remainingBalance).toLocaleString()}`}
+            label={`${displayValue >= 0 ? '₨' : '-₨'}${Math.abs(displayValue).toLocaleString()}`}
             size='small'
             color={color}
             className='font-medium'
@@ -139,7 +142,7 @@ const PurchaseInvoicePage = () => {
           const cashPaid = row.original.cashPaid || 0
           const paymentDetails = row.original.paymentDetails || []
           const totalPayments = paymentDetails.reduce((sum, payment) => sum + (payment.amountPaid || 0), 0)
-          remainingBalance = grandTotal - cashPaid - totalPayments
+          remainingBalance = cashPaid + totalPayments - grandTotal
         }
 
         const totalPaid = (row.original.cashPaid || 0) +
@@ -148,12 +151,21 @@ const PurchaseInvoicePage = () => {
         let status = 'Unpaid'
         let color = 'error'
 
-        if (remainingBalance <= 0) {
+        // Map colors similarly to Outstanding Balance:
+        // positive (>0) -> grey (default), zero (0) -> green (success), negative (<0) -> red (error)
+        if (remainingBalance > 0) {
+          status = 'Paid'
+          color = 'default'
+        } else if (remainingBalance === 0) {
           status = 'Paid'
           color = 'success'
         } else if (totalPaid > 0) {
+          // Partial payments (less than required) stay as info
           status = 'Partial'
           color = 'info'
+        } else {
+          status = 'Unpaid'
+          color = 'error'
         }
 
         return (
@@ -323,9 +335,9 @@ const PurchaseInvoicePage = () => {
         const paymentDetails = item.paymentDetails || []
         const totalPayments = paymentDetails.reduce((sum, payment) => sum + (payment.amountPaid || 0), 0)
         const totalPaid = cashPaid + totalPayments
-        const remainingBalance = grandTotal - totalPaid
+        const remainingBalance = totalPaid - grandTotal
 
-        if (remainingBalance <= 0) return 'paid'
+        if (remainingBalance >= 0) return 'paid'
         if (totalPaid > 0) return 'partial'
         return 'unpaid'
       })(),
@@ -336,8 +348,8 @@ const PurchaseInvoicePage = () => {
         const cashPaid = item.cashPaid || 0
         const paymentDetails = item.paymentDetails || []
         const totalPayments = paymentDetails.reduce((sum, payment) => sum + (payment.amountPaid || 0), 0)
-        const remainingBalance = grandTotal - cashPaid - totalPayments
-        return Math.max(0, remainingBalance)
+        const remainingBalance = cashPaid + totalPayments - grandTotal
+        return remainingBalance  // Return actual balance, including negative values
       })(),
 
       // Add status for filtering
