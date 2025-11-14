@@ -253,7 +253,7 @@ export const salesInvoiceService = {
   },
 
   // Get next sales invoice number (preview only, not saved)
-  getNextInvoiceNumber: (queryKey, date) => {
+  getNextInvoiceNumber: (queryKey, date, options = {}) => {
     return useQuery({
       queryKey: [queryKey, date],
       queryFn: async () => {
@@ -261,6 +261,8 @@ export const salesInvoiceService = {
         const url = params ? `${API_BASE_URL}${API_URLS.GET_NEXT_INVOICE_NUMBER}?${params}` : `${API_BASE_URL}${API_URLS.GET_NEXT_INVOICE_NUMBER}`
         return axios.get(url)
       },
+      enabled: options.enabled ?? true,
+      staleTime: options.staleTime ?? 0,
       retry: false,
       refetchOnWindowFocus: false
     })

@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react'
 
 // Next Imports
 import Link from 'next/link'
-import { useParams } from 'next/navigation'
+import { useParams, useRouter } from 'next/navigation'
 
 import { toast } from 'react-toastify'
 
@@ -35,7 +35,6 @@ import { getInitials } from '@/utils/getInitials'
 import { getLocalizedUrl } from '@/utils/i18n'
 import { lookupService } from '@/services/lookupService'
 import { brandService } from '@/services/brandService'
-import AddPurchaseInvoiceDrawer from './AddPurchaseInvoiceDrawer'
 import { purchaseInvoiceService } from '@/services/purchaseInvoiceService'
 
 // Styled Components
@@ -46,14 +45,14 @@ const columnHelper = createColumnHelper()
 
 const PurchaseInvoicePage = () => {
   // States
-  const [onePurchaseEntry, setOnePurchaseEntry] = useState(null)
-  const [addPurchaseEntryOpen, setAddPurchaseEntryOpen] = useState(false)
-  const [brands, setBrands] = useState([])
   const [toggledId, setToggledId] = useState(null)
+
+  const [brands, setBrands] = useState([])
 
   // Hooks
   const { lang: locale } = useParams()
   const queryClient = useQueryClient()
+  const router = useRouter()
 
   // Using `useMutation` to toggle purchase entry status
   const { mutate: toggleStatus, isPending: isTogglingStatus } = purchaseInvoiceService.togglePurchaseEntryStatus()
@@ -108,10 +107,9 @@ const PurchaseInvoicePage = () => {
         } else {
           // Calculate manually
           const grandTotal = row.original.grandTotal || 0
-          const cashPaid = row.original.cashPaid || 0
           const paymentDetails = row.original.paymentDetails || []
           const totalPayments = paymentDetails.reduce((sum, payment) => sum + (payment.amountPaid || 0), 0)
-          remainingBalance = cashPaid + totalPayments - grandTotal
+          remainingBalance = totalPayments - grandTotal
         }
 
   // Show actual value: positive if vendor owes us, negative if we owe vendor
@@ -139,14 +137,12 @@ const PurchaseInvoicePage = () => {
           remainingBalance = row.original.remainingBalance
         } else {
           const grandTotal = row.original.grandTotal || 0
-          const cashPaid = row.original.cashPaid || 0
           const paymentDetails = row.original.paymentDetails || []
           const totalPayments = paymentDetails.reduce((sum, payment) => sum + (payment.amountPaid || 0), 0)
-          remainingBalance = cashPaid + totalPayments - grandTotal
+          remainingBalance = totalPayments - grandTotal
         }
 
-        const totalPaid = (row.original.cashPaid || 0) +
-          (row.original.paymentDetails || []).reduce((sum, payment) => sum + (payment.amountPaid || 0), 0)
+        const totalPaid = (row.original.paymentDetails || []).reduce((sum, payment) => sum + (payment.amountPaid || 0), 0)
 
         let status = 'Unpaid'
         let color = 'error'
@@ -239,8 +235,7 @@ const PurchaseInvoicePage = () => {
               <IconButton
                 size="small"
                 onClick={() => {
-                  setOnePurchaseEntry(row.original._id || row.original.id)
-                  setAddPurchaseEntryOpen(true)
+                  router.push(getLocalizedUrl(`/purchaseInvoice/edit/${row.original._id || row.original.id}`, locale))
                 }}
               >
                 <i className='tabler-edit text-textSecondary' />
@@ -331,10 +326,9 @@ const PurchaseInvoicePage = () => {
       // Calculate payment status for filtering
       paymentStatus: (() => {
         const grandTotal = item.grandTotal || 0
-        const cashPaid = item.cashPaid || 0
         const paymentDetails = item.paymentDetails || []
         const totalPayments = paymentDetails.reduce((sum, payment) => sum + (payment.amountPaid || 0), 0)
-        const totalPaid = cashPaid + totalPayments
+        const totalPaid = totalPayments
         const remainingBalance = totalPaid - grandTotal
 
         if (remainingBalance >= 0) return 'paid'
@@ -345,10 +339,9 @@ const PurchaseInvoicePage = () => {
       // Calculate remaining balance for display
       remainingBalance: (() => {
         const grandTotal = item.grandTotal || 0
-        const cashPaid = item.cashPaid || 0
         const paymentDetails = item.paymentDetails || []
         const totalPayments = paymentDetails.reduce((sum, payment) => sum + (payment.amountPaid || 0), 0)
-        const remainingBalance = cashPaid + totalPayments - grandTotal
+        const remainingBalance = totalPayments - grandTotal
         return remainingBalance  // Return actual balance, including negative values
       })(),
 
@@ -374,8 +367,7 @@ const PurchaseInvoicePage = () => {
             variant='contained'
             startIcon={<i className='tabler-plus' />}
             onClick={() => {
-              setOnePurchaseEntry(null)
-              setAddPurchaseEntryOpen(!addPurchaseEntryOpen)
+              router.push(getLocalizedUrl('/purchaseInvoice/add', locale))
             }}
             className='max-sm:is-full'
           >
@@ -396,16 +388,6 @@ const PurchaseInvoicePage = () => {
         defaultPageSize={10}
         transformData={transformData}
       />
-
-      {/* Add Purchase Entry Drawer */}
-      {addPurchaseEntryOpen && (
-        <AddPurchaseInvoiceDrawer
-          open={addPurchaseEntryOpen}
-          stateChanger={() => setAddPurchaseEntryOpen(!addPurchaseEntryOpen)}
-          onePurchaseEntry={onePurchaseEntry}
-          setOnePurchaseEntry={setOnePurchaseEntry}
-        />
-      )}
     </>
   )
 }

@@ -70,12 +70,21 @@ const LedgerSummaryCards = ({
       // trendColor: 'error'
     },
     {
-      title: 'Total Paid',
+      title: 'Total Received Cash',
       value: formatCurrency(summaryData?.totalCashReceived),
-      subtitle: 'Cash Paid',
+      subtitle: 'Cash Received from Sales',
       icon: 'tabler-currency-rupee',
       color: 'warning',
       // trend: '+12.5%',
+      // trendColor: 'success'
+    },
+    {
+      title: 'Total Sales',
+      value: formatCurrency(summaryData?.totalSales),
+      subtitle: 'Sales Revenue',
+      icon: 'tabler-shopping-cart',
+      color: 'info',
+      // trend: '+18.2%',
       // trendColor: 'success'
     },
     {
@@ -86,15 +95,6 @@ const LedgerSummaryCards = ({
       color: 'error',
       // trend: '+8.1%',
       // trendColor: 'warning'
-    },
-    {
-      title: 'Total Sales',
-      value: formatCurrency(summaryData?.totalSales),
-      subtitle: 'Sales Revenue',
-      icon: 'tabler-shopping-cart',
-      color: 'info',
-      // trend: '+18.2%',
-      // trendColor: 'success'
     },
     {
       title: 'Total Purchases',

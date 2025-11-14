@@ -90,9 +90,11 @@ const AddSalesInvoicePage = () => {
   } = salesInvoiceService.getSalesInvoiceForEdit('get-sales-invoice-for-edit', invoiceId)
 
   // Get next invoice number (only for new invoices, not when editing)
-  const { data: nextInvoiceNumberData, isLoading: isLoadingInvoiceNumber, refetch: refetchInvoiceNumber } = salesInvoiceService.getNextInvoiceNumber(
+  const shouldFetchNextInvoiceNumber = !isEditMode
+  const { data: nextInvoiceNumberData, isLoading: isLoadingInvoiceNumber } = salesInvoiceService.getNextInvoiceNumber(
     'get-next-invoice-number',
-    !isEditMode ? invoiceDate : null
+    shouldFetchNextInvoiceNumber ? invoiceDate : null,
+    { enabled: shouldFetchNextInvoiceNumber, staleTime: 1000 * 60 * 5 }
   )
 
 
@@ -162,14 +164,6 @@ const AddSalesInvoicePage = () => {
   const { data: employeesData } = lookupService.getEmployeesLookup('get-employees-lookup')
   const { data: productsData } = productService.getAllProducts('get-all-products')
 
-  // Force refresh sales invoice data when edit mode is detected
-  useEffect(() => {
-    if (isEditMode && invoiceId) {
-      // Force refetch the specific sales invoice to ensure fresh data
-      queryClient.invalidateQueries({ queryKey: ['get-sales-invoice-for-edit', invoiceId] })
-    }
-  }, [isEditMode, invoiceId, queryClient])
-
   // Main formik for sales invoice
   const formik = useFormik({
     initialValues: {
@@ -232,11 +226,14 @@ const AddSalesInvoicePage = () => {
     }
   })
 
-  // Get delivery log number preview when employee is selected
+  // Get delivery log number preview when employee is selected (create mode only)
+  const shouldFetchDeliveryLogPreview = !isEditMode
+  const deliveryLogPreviewEmployee = shouldFetchDeliveryLogPreview ? formik.values.deliverBy : null
+  const deliveryLogPreviewDate = shouldFetchDeliveryLogPreview ? formik.values.date : null
   const { data: deliveryLogNumberData, isLoading: isLoadingDeliveryLogNumber } = deliveryLogService.getDeliveryLogNumber(
     'get-delivery-log-preview-number',
-    formik.values.deliverBy,
-    formik.values.date
+    deliveryLogPreviewEmployee,
+    deliveryLogPreviewDate
   )
 
 
@@ -356,8 +353,9 @@ const AddSalesInvoicePage = () => {
   })
 
 
-  // Get last invoice data by customer
-  const { data: lastInvoiceData, isFetching: lastInvoiceLoading } = salesInvoiceService.getLastInvoiceByCustomer('get-last-invoice-by-customer', formik.values.customerId)
+  // Get last invoice data by customer (only needed while creating)
+  const customerIdForLastInvoice = !isEditMode ? formik.values.customerId : null
+  const { data: lastInvoiceData, isFetching: lastInvoiceLoading } = salesInvoiceService.getLastInvoiceByCustomer('get-last-invoice-by-customer', customerIdForLastInvoice)
 
   // Transform customers data
   useEffect(() => {
@@ -1528,34 +1526,31 @@ const AddSalesInvoicePage = () => {
                               </Typography>
                             </div>
                           </div>
-
-                          <Divider sx={{ my: 4 }} />
-
-                          {/* Action Buttons */}
-                          <Box sx={{ '& > *': { mb: 2 } }}>
-                            <CustomButton
-                              type="submit"
-                              variant="contained"
-                              fullWidth
-                              loading={createSalesInvoiceMutation.isPending || updateSalesInvoiceMutation.isPending}
-                              disabled={formik.values.products.length === 0}
-                            >
-                              {isEditMode ? 'Update Invoice' : 'Create Invoice'}
-                            </CustomButton>
-                            <Button
-                              variant="outlined"
-                              fullWidth
-                              onClick={() => router.push(getLocalizedUrl('/sales-invoice', params.lang))}
-                            >
-                              Cancel
-                            </Button>
-                          </Box>
                         </CardContent>
                       </Card>
                     </Grid>
                   </Grid>
                 </CardContent>
               </Card>
+              {/* Action Buttons - match purchase invoice layout */}
+              <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2 }}>
+                <Button
+                  variant='tonal'
+                  color='error'
+                  onClick={() => router.push(getLocalizedUrl('/sales-invoice', params.lang))}
+                >
+                  Cancel
+                </Button>
+                <CustomButton
+                  onClick={() => formik.handleSubmit()}
+                  variant='contained'
+                  disabled={createSalesInvoiceMutation.isPending || updateSalesInvoiceMutation.isPending}
+                  loading={createSalesInvoiceMutation.isPending || updateSalesInvoiceMutation.isPending}
+                  className='min-w-[120px]'
+                >
+                  {isEditMode ? 'Update' : 'Create'}
+                </CustomButton>
+              </Box>
             </Grid>
           </Grid>
         </form>

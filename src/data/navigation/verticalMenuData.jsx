@@ -74,6 +74,37 @@ const verticalMenuData = dictionary => [
     icon: 'tabler-truck-delivery'
   },
   {
+    label: "Reports",
+    icon: 'tabler-report',
+    children: [
+      // {
+      //   label: "Sales Reports",
+      //   href: '/reports/sales',
+      //   icon: 'tabler-chart-line'
+      // },
+      // {
+      //   label: "Purchase Reports",
+      //   href: '/reports/purchase',
+      //   icon: 'tabler-shopping-cart'
+      // },
+      {
+        label: "Product Reports",
+        href: '/reports/products',
+        icon: 'tabler-box'
+      },
+      {
+        label: "Brand Reports",
+        href: '/reports/brands',
+        icon: 'tabler-building-store'
+      },
+      {
+        label: "Customer Reports",
+        href: '/reports/customers',
+        icon: 'tabler-users'
+      }
+    ]
+  },
+  {
     label: "Expenses",
     href: '/expenses',
     icon: 'tabler-currency-dollar'
