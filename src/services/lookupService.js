@@ -65,6 +65,16 @@ export const lookupService = {
       refetchOnWindowFocus: false
     })
   },
+  getAreasByCustomersSalesLookup: queryKey => {
+    return useQuery({
+      queryKey: [queryKey],
+      queryFn: () => {
+        return axios.get(`${API_BASE_URL}${API_URLS.getAreasByCustomersSalesLookup}`)
+      },
+      retry: false,
+      refetchOnWindowFocus: false
+    })
+  },
   getSubAreasLookup: (queryKey, areaId) => {
     return useQuery({
       queryKey: [queryKey, areaId],
@@ -72,6 +82,20 @@ export const lookupService = {
         const url = areaId
           ? `${API_BASE_URL}${API_URLS.getSubAreasLookup}?areaId=${areaId}`
           : `${API_BASE_URL}${API_URLS.getSubAreasLookup}`
+        return axios.get(url)
+      },
+      retry: false,
+      refetchOnWindowFocus: false,
+      enabled: !!areaId
+    })
+  },
+  getSubAreasByCustomersSalesLookup: (queryKey, areaId) => {
+    return useQuery({
+      queryKey: [queryKey, areaId],
+      queryFn: () => {
+        const url = areaId
+          ? `${API_BASE_URL}${API_URLS.getSubAreasByCustomersSalesLookup}?areaId=${areaId}`
+          : `${API_BASE_URL}${API_URLS.getSubAreasByCustomersSalesLookup}`
         return axios.get(url)
       },
       retry: false,

@@ -175,11 +175,11 @@ const PurchaseInvoicePage = () => {
         )
       }
     }),
-    columnHelper.accessor('Date Created', {
-      header: 'Date Created',
+    columnHelper.accessor('Invoice Date', {
+      header: 'Invoice Date',
       cell: ({ row }) => (
         <Typography color='text.primary'>
-          {row.original.createdAt ? new Date(row.original.createdAt).toLocaleDateString() : 'N/A'}
+          {row.original.createdAt ? new Date(row.original.invoiceDate).toLocaleDateString() : 'N/A'}
         </Typography>
       )
     }),

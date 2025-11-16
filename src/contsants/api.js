@@ -122,7 +122,9 @@ export const API_URLS = {
   getAllDesignations: '/lookup/designations',
   getAllCities: '/lookup/all-cities',
   getAreasLookup: '/lookup/areas',
+  getAreasByCustomersSalesLookup: '/lookup/areas-by-customers-sales',
   getSubAreasLookup: '/lookup/subareas',
+  getSubAreasByCustomersSalesLookup: '/lookup/subareas-by-customers-sales',
   getBrandsLookup: '/lookup/brands',
   getGroupsLookup: '/lookup/groups',
   getSubGroupsLookup: '/lookup/subgroups',
@@ -187,4 +189,21 @@ export const API_URLS = {
   GET_DELIVERY_LOGS_BY_DATE_RANGE: '/delivery-logs/date-range',
   GET_DELIVERY_LOG_STATS: '/delivery-logs/stats',
   GET_DELIVERY_LOG_PREVIEW_NUMBER: '/delivery-logs/preview-number',
+
+  // Reports - Customer Report
+  GET_CUSTOMER_REPORT: '/reports/customers',
+  GET_CUSTOMER_DETAILED_REPORT: '/reports/customers/', // + customerId
+  GET_CUSTOMER_REPORT_INVOICE: '/reports/customers/invoice/', // + invoiceId
+  EXPORT_CUSTOMER_REPORT: '/reports/customers/export',
+
+  // Reports - Brand Report
+  GET_BRAND_REPORT: '/reports/brands',
+  GET_BRAND_DETAILED_REPORT: '/reports/brands/', // + brandId
+  GET_BRAND_REPORT_INVOICE: '/reports/brands/invoice/', // + invoiceId
+  EXPORT_BRAND_REPORT: '/reports/brands/export',
+
+  // Reports - Product Report
+  GET_PRODUCT_REPORT: '/reports/products',
+  GET_PRODUCT_DETAILED_REPORT: '/reports/products/', // + productId/:customerId
+  EXPORT_PRODUCT_REPORT: '/reports/products/export',
 }
