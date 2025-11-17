@@ -206,4 +206,15 @@ export const API_URLS = {
   GET_PRODUCT_REPORT: '/reports/products',
   GET_PRODUCT_DETAILED_REPORT: '/reports/products/', // + productId/:customerId
   EXPORT_PRODUCT_REPORT: '/reports/products/export',
+
+  // Dashboard
+  GET_DASHBOARD_SUMMARY_CARDS: '/dashboard/summary-cards',
+  GET_DASHBOARD_BRAND_SALES: '/dashboard/brand-wise-sales',
+  GET_DASHBOARD_TOP_PRODUCTS: '/dashboard/top-products',
+  GET_DASHBOARD_RECEIVABLES_AGING: '/dashboard/receivables-aging',
+  GET_DASHBOARD_STOCK_ALERTS: '/dashboard/stock-alerts',
+  GET_DASHBOARD_NEAR_EXPIRY: '/dashboard/near-expiry',
+  GET_DASHBOARD_AREA_SALES: '/dashboard/area-wise-sales',
+  GET_DASHBOARD_INVOICE_BREAKDOWN: '/dashboard/invoice-breakdown',
+  GET_DASHBOARD_COMPLETE: '/dashboard/complete',
 }

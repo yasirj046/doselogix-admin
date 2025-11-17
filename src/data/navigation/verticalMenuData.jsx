@@ -2,6 +2,11 @@
 
 const verticalMenuData = dictionary => [
   {
+    label: "Dashboard",
+    href: '/dashboard',
+    icon: 'tabler-dashboard'
+  },
+  {
     label: "Customers",
     href: '/users',
     icon: 'tabler-user'
