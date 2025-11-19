@@ -2,6 +2,7 @@
 
 // React Imports
 import { useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 
 // MUI Imports
 import Grid from '@mui/material/Grid'
@@ -25,6 +26,8 @@ import StockAlertsTable from './StockAlertsTable'
 import NearExpiryTable from './NearExpiryTable'
 import AreaWiseSalesChart from './AreaWiseSalesChart'
 import InvoiceBreakdownChart from './InvoiceBreakdownChart'
+import SalesPredictionChart from './SalesPredictionChart'
+import HealthNewsCard from './HealthNewsCard'
 
 const DashboardPage = () => {
   // State for date filter
@@ -38,6 +41,8 @@ const DashboardPage = () => {
     endDate: ''
   })
 
+  const queryClient = useQueryClient()
+
   const handleApplyFilter = () => {
     setAppliedFilter(dateFilter)
   }
@@ -45,6 +50,13 @@ const DashboardPage = () => {
   const handleClearFilter = () => {
     setDateFilter({ startDate: '', endDate: '' })
     setAppliedFilter({ startDate: '', endDate: '' })
+    // Ensure invoice breakdown and related dashboard queries refetch
+    try {
+      queryClient.invalidateQueries(['dashboard-invoice-breakdown'])
+      queryClient.invalidateQueries(['dashboard-complete'])
+    } catch (e) {
+      // ignore if queryClient not available during SSR or tests
+    }
   }
 
   const handleTodayFilter = () => {
@@ -201,12 +213,12 @@ const DashboardPage = () => {
       </Grid>
 
       {/* Top Products Widget */}
-      <Grid item xs={12} md={6}>
+      <Grid item xs={12} md={12}>
         <TopProductsWidget dateFilter={appliedFilter} />
       </Grid>
 
       {/* Area-Wise Sales Chart */}
-      <Grid item xs={12} md={6}>
+      <Grid item xs={12} md={12}>
         <AreaWiseSalesChart dateFilter={appliedFilter} />
       </Grid>
 
@@ -245,6 +257,27 @@ const DashboardPage = () => {
       {/* Near Expiry Products Table */}
       <Grid item xs={12} lg={6}>
         <NearExpiryTable />
+      </Grid>
+
+      {/* SECTION: AI & Predictive Analytics */}
+      <Grid item xs={12}>
+        <Box className='flex items-center gap-2 mb-2 mt-4'>
+          <Icon icon='tabler-brain' fontSize={24} color='var(--mui-palette-info-main)' />
+          <Typography variant='h5' fontWeight={600}>
+            Latest News And Predictive Analytics
+          </Typography>
+        </Box>
+        <Divider />
+      </Grid>
+
+      {/* Sales Prediction Chart */}
+      <Grid item xs={12} lg={8}>
+        <SalesPredictionChart />
+      </Grid>
+
+      {/* Health News Card */}
+      <Grid item xs={12} lg={4}>
+        <HealthNewsCard />
       </Grid>
     </Grid>
   )

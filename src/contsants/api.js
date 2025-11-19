@@ -217,4 +217,6 @@ export const API_URLS = {
   GET_DASHBOARD_AREA_SALES: '/dashboard/area-wise-sales',
   GET_DASHBOARD_INVOICE_BREAKDOWN: '/dashboard/invoice-breakdown',
   GET_DASHBOARD_COMPLETE: '/dashboard/complete',
+  GET_DASHBOARD_SALES_PREDICTION: '/dashboard/sales-prediction',
+  GET_DASHBOARD_PRODUCTS_WITH_SALES: '/dashboard/products-with-sales',
 }

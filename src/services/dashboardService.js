@@ -19,7 +19,8 @@ export const dashboardService = {
   // Get brand-wise sales data
   getBrandWiseSales: (queryKey, params = {}) => {
     return useQuery({
-      queryKey: [queryKey, params],
+      // Use primitive queryKey entries for reliable cache keys
+      queryKey: [queryKey, params.startDate || null, params.endDate || null, params.limit || null],
       queryFn: () => {
         const queryParams = new URLSearchParams()
 
@@ -41,7 +42,7 @@ export const dashboardService = {
   // Get top selling products
   getTopProducts: (queryKey, params = {}) => {
     return useQuery({
-      queryKey: [queryKey, params],
+      queryKey: [queryKey, params.startDate || null, params.endDate || null, params.limit || null],
       queryFn: () => {
         const queryParams = new URLSearchParams()
 
@@ -115,7 +116,7 @@ export const dashboardService = {
   // Get area-wise sales
   getAreaWiseSales: (queryKey, params = {}) => {
     return useQuery({
-      queryKey: [queryKey, params],
+      queryKey: [queryKey, params.startDate || null, params.endDate || null, params.limit || null],
       queryFn: () => {
         const queryParams = new URLSearchParams()
 
@@ -137,7 +138,7 @@ export const dashboardService = {
   // Get invoice breakdown (Cash vs Credit)
   getInvoiceBreakdown: (queryKey, params = {}) => {
     return useQuery({
-      queryKey: [queryKey, params],
+      queryKey: [queryKey, params.startDate || null, params.endDate || null],
       queryFn: () => {
         const queryParams = new URLSearchParams()
 
@@ -158,7 +159,7 @@ export const dashboardService = {
   // Get complete dashboard data (all widgets in one call)
   getCompleteDashboard: (queryKey, params = {}) => {
     return useQuery({
-      queryKey: [queryKey, params],
+      queryKey: [queryKey, params.startDate || null, params.endDate || null],
       queryFn: () => {
         const queryParams = new URLSearchParams()
 
@@ -170,6 +171,39 @@ export const dashboardService = {
         }`
 
         return axios.get(url)
+      },
+      retry: false,
+      refetchOnWindowFocus: false
+    })
+  },
+
+  // Get sales prediction for a product
+  getSalesPrediction: (queryKey, params = {}) => {
+    return useQuery({
+      queryKey: [queryKey, params.productId || null],
+      queryFn: () => {
+        const queryParams = new URLSearchParams()
+
+        if (params.productId) queryParams.append('productId', params.productId)
+
+        const url = `${API_BASE_URL}${API_URLS.GET_DASHBOARD_SALES_PREDICTION}${
+          queryParams.toString() ? `?${queryParams.toString()}` : ''
+        }`
+
+        return axios.get(url)
+      },
+      retry: false,
+      refetchOnWindowFocus: false,
+      enabled: !!params.productId // Only fetch when productId is provided
+    })
+  },
+
+  // Get list of products with sales history
+  getProductsWithSales: queryKey => {
+    return useQuery({
+      queryKey: [queryKey],
+      queryFn: () => {
+        return axios.get(`${API_BASE_URL}${API_URLS.GET_DASHBOARD_PRODUCTS_WITH_SALES}`)
       },
       retry: false,
       refetchOnWindowFocus: false
